@@ -1,4 +1,4 @@
-# KAMUI 2.2 — iOS 27.0.1–27.2 sandbox escape + MobileGestalt editor
+# KAMUI 2.3 — iOS 27.0.1–27.2 sandbox escape + MobileGestalt editor
 
 **Open source, MIT licensed and free for everyone.** There is no tester list,
 private group or allowlist. Anyone can use, modify and redistribute KAMUI and
@@ -6,14 +6,23 @@ the MobileGestalt editor.
 
 ## Assets
 
-- `KAMUI-2.2.ipa` — the app. Install it on any supported device.
+- `KAMUI-2.3.ipa` — the app. Install it on any supported device.
 - Source code and build instructions are in the repository.
 
-## What's new in 2.2
+## 2.3 hotfix
 
-- **Class-2 parent fallback** for devices without an app group: KAMUI renames
-  the app's own `Library`, creates `Library/Caches` → target, queries class 2,
-  then restores `Library`. The per-strategy log shows `class2-parent`.
+2.2 ran the class-2 parent fallback automatically. On builds that terminate
+the app when its own `Library` is moved, that looked like a launch crash. In
+2.3 the fallback is **off by default** and available in
+**Settings → Class-2 fallback (experimental)**. With it off, the app launches
+normally on every build; with it on, the log records `class2-parent` and the
+result.
+
+If KAMUI closes when you enable the switch, relaunch, disable the switch and
+send `Documents/bqtool.log`. Do not enable it if you already have an app group.
+
+## What's new since 2.1
+
 - **Dynamic Island controls**: enable/disable, model/position picker for
   iPhone 14/15/16/17/18 (experimental) and a custom subtype field.
 - **Version spoof**: writes ProductVersion and BuildVersion into MobileGestalt.
@@ -23,14 +32,13 @@ the MobileGestalt editor.
 - **Security Research Device (ResearchFuse)** and **Store Demo Mode** toggles.
 - **Test-device banner**: “This iPhone is provided specifically for testing”
   with an editable “Managed by group:” label in Settings.
-- The old “App group entitlement missing” alert is gone; the app now tries the
-  class-2 fallback and logs each strategy instead of blocking at launch.
+- **Class-2 fallback** (opt-in) for devices without an app group.
 
 ## Runtime requirement
 
 The primary 27.2 class-7 strategy needs at least one
 `com.apple.security.application-groups` entitlement in the running app. If
-there is none, KAMUI 2.2 tries the class-2 parent fallback automatically. If the
+there is none, enable the class-2 fallback in Settings and retry. If the
 sandbox denies moving `Library`, the log says so and an app group is still
 required for the class-7 path.
 

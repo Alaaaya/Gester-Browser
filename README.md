@@ -24,10 +24,12 @@ build — the MIT license allows all of it.
 The MobileGestalt editor itself has no access check and no allowlist. On
 **iOS 27.2** the primary class-7 path needs at least one
 `com.apple.security.application-groups` entitlement in the running app. KAMUI
-2.2 also tries the **class-2 parent fallback**, which renames the app's own
-`Library` and may work without an app group. If both paths fail, the log shows
-exactly which step the sandbox denied. On some **27.0.x** builds the legacy
-class-13 traversal may work without an app group.
+2.3 also offers an **opt-in class-2 parent fallback** (Settings → Class-2
+fallback), which renames the app's own `Library` and may work without an app
+group. It is off by default because some builds terminate the app when
+`Library` is moved. If both paths fail, the log shows exactly which step the
+sandbox denied. On some **27.0.x** builds the legacy class-13 traversal may
+work without an app group.
 
 ---
 
@@ -122,8 +124,10 @@ tmp                  -> EPERM (errno 1)
 SystemData           -> EPERM (errno 1)
 ```
 
-Only the app-group part directory is directly renameable. KAMUI 2.2 adds an
-automatic **class-2 parent fallback** for builds without an app group:
+Only the app-group part directory is directly renameable. KAMUI 2.3 has an
+**opt-in class-2 parent fallback** for builds without an app group. It is off
+by default (2.2 ran it automatically and could crash on builds that kill the
+process for moving `Library`):
 
 1. Rename the app's own `Library` to `Library.bqtool`.
 2. Create a small fresh `Library` and symlink `Library/Caches` to the target.
@@ -132,9 +136,11 @@ automatic **class-2 parent fallback** for builds without an app group:
 4. Restore the original `Library` immediately; the consumed token remains
    valid for the resolved target.
 
-If the sandbox also denies moving `Library`, the app reports the failure in
-`bqtool.log` and the primary class-7 path still needs an app group. The log
-line to look for is `strategy class2-parent`.
+Enable it in **Settings → Class-2 fallback (experimental)** and then retry
+Gestalt/PosterBoard. If the app closes when it is enabled, relaunch, disable the
+switch, and send `Documents/bqtool.log`. If the sandbox denies moving
+`Library`, the log shows `class2-parent: move Library -> bak failed` and the
+class-7 path still needs an app group.
 
 ### 2.4 Dynamic app group
 
@@ -159,7 +165,7 @@ hardcoded identifier.
 |---|---|---|---|
 | 1 | class 13 + `partDomain` traversal (old `bad_query`) | no | 27.0.x where traversal is still open |
 | 2 | class 7 part-directory symlink | yes | 27.2 |
-| 3 | class 2 parent `Library` symlink (2.2) | no | 27.2 if `Library` rename is allowed |
+| 3 | class 2 parent `Library` symlink (2.3, opt-in) | no | 27.2 if `Library` rename is allowed |
 | 4 | class 13 direct MG query | no | builds that issue a token |
 | 5 | class 12 geod + traversal | no | older builds |
 
@@ -196,7 +202,7 @@ Requirements: Linux/macOS, clang, an iOS SDK (Theos SDK works), zlib.
 
 ```bash
 ./build.sh
-# -> build/KAMUI-2.2.ipa
+# -> build/KAMUI-2.3.ipa
 ```
 
 The default bundle identifier is `com.kamui.escape`. Override with `BID=...`.
@@ -206,7 +212,7 @@ The SDK path can be overridden with `SDK=...`.
 
 ## 5. Install and runtime requirement
 
-Anyone can install `KAMUI-2.2.ipa`; use whatever installation method you
+Anyone can install `KAMUI-2.3.ipa`; use whatever installation method you
 normally use.
 
 The primary 27.2 strategy needs the running app to have at least one
@@ -261,7 +267,10 @@ escape: using class7 symlink
 
 ## 8. Version notes
 
-- **2.2** — adds the class-2 parent fallback for builds without an app group,
+- **2.3** — makes the class-2 parent fallback opt-in (Settings → Class-2
+  fallback). 2.2 ran it automatically and could terminate the app when
+  `Library` was moved. Also improves the escape error messages.
+- **2.2** — added the class-2 parent fallback,
   Dynamic Island enable/disable and model picker, version spoof, Apple
   Intelligence, Siri AI US region, AI device spoof, iPadOS mode, ResearchFuse
   (Security Research Device), Store Demo Mode, and the in-app test-device /
@@ -354,9 +363,9 @@ use, copy, modify, merge, publish, distribute, sublicense and sell copies of
 the software, including the MobileGestalt editor, as long as the copyright and
 permission notice are preserved.
 
-`v2.2`:
+`v2.3`:
 
-- `KAMUI-2.2.ipa` — the app; install it on any supported device.
+- `KAMUI-2.3.ipa` — the app; install it on any supported device.
 - Source code and build script are in this repository.
 
 There is no allowlist and no special access. The anime name is for fun; the

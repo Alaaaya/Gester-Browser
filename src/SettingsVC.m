@@ -52,6 +52,16 @@
     [self updateBanner];
 }
 
+- (void)class2Changed:(UISwitch *)sw {
+    BQSetClass2ParentEnabled(sw.isOn);
+    if (sw.isOn) {
+        BQAlert(self, @"Class-2 fallback enabled",
+                @"KAMUI will try to move its own Library on the next Gestalt/PosterBoard operation. "
+                @"Some builds kill the app for this; if KAMUI closes, relaunch and disable this switch. "
+                @"Send Documents/bqtool.log to the developer.");
+    }
+}
+
 - (void)editManagedGroup {
     UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Managed by group"
                                                                message:@"This label is shown in the app banner. It does not install an MDM enrollment or change iOS Settings."
@@ -121,7 +131,7 @@
         case 0: return 4;
         case 1: return 1;
         case 2: return 2;
-        case 3: return 2;
+        case 3: return 3;
         case 4: return 3;
     }
     return 0;
@@ -140,7 +150,7 @@
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (section == 1) return @"In-place write keeps the same inode and is more likely to persist after reboot. Disable to use atomic replace.";
-    if (section == 3) return @"The banner is shown inside KAMUI only. Changing the system Settings banner requires MDM/supervision enrollment.";
+    if (section == 3) return @"The banner is shown inside KAMUI only. Changing the system Settings banner requires MDM/supervision enrollment. The class-2 fallback is off by default because moving Library can make the sandbox terminate the app.";
     if (section == 4) return @"KAMUI is MIT licensed and free for everyone. No allowlist, no tester group. Use only on devices you own or have permission to modify. UI inspired by mond. NeoSpring by neonmodder123/skadz108.";
     return nil;
 }
@@ -213,6 +223,21 @@
                 cell.accessoryView = sw;
             }
             sw.on = [self bannerEnabled];
+            return cell;
+        }
+        if (indexPath.row == 2) {
+            UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"class2switch"];
+            if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"class2switch"];
+            cell.textLabel.text = @"Class-2 fallback (experimental)";
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
+            UISwitch *sw = (UISwitch *)cell.accessoryView;
+            if (![sw isKindOfClass:[UISwitch class]]) {
+                sw = [[UISwitch alloc] init];
+                sw.onTintColor = self.view.tintColor;
+                [sw addTarget:self action:@selector(class2Changed:) forControlEvents:UIControlEventValueChanged];
+                cell.accessoryView = sw;
+            }
+            sw.on = BQClass2ParentEnabled();
             return cell;
         }
         UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"bannergroup"];

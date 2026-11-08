@@ -24,6 +24,12 @@ BOOL BQCoreInit(void);
 // BQEndEscape() to release and restore the app group.
 int64_t BQEscape(NSString *target, NSString **linkOut);
 void BQEndEscape(int64_t handle);
+
+// Experimental class-2 parent fallback. Off by default because moving the
+// app's own Library can be killed by the sandbox on some builds. Enable from
+// Settings only when an app group is unavailable.
+BOOL BQClass2ParentEnabled(void);
+void BQSetClass2ParentEnabled(BOOL on);
 BOOL BQCheckAccess(NSString *target, BOOL writable, NSString **err);
 
 // ---- MobileGestalt ---------------------------------------------------------

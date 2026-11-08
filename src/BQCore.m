@@ -29,7 +29,17 @@ static NSLock *gLogLock;
 static NSString *gGroupRoot;
 static NSString *gGroupID;
 static int gTraversalState; // 0 unknown, 1 works, -1 unsupported
+static BOOL gClass2ParentEnabled;
 static dispatch_queue_t gWorkQueue;
+
+BOOL BQClass2ParentEnabled(void) { return gClass2ParentEnabled; }
+
+void BQSetClass2ParentEnabled(BOOL on) {
+    gClass2ParentEnabled = on;
+    [[NSUserDefaults standardUserDefaults] setBool:on forKey:@"BQClass2ParentEnabled"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    BQLog(@"class2-parent enabled=%d", on);
+}
 
 NSString *BQLogPath(void) {
     if (!gLogPath) {
@@ -301,6 +311,7 @@ BOOL BQCoreInit(void) {
         [[NSFileManager defaultManager] createDirectoryAtPath:[docs stringByAppendingPathComponent:@"PosterBoard/Wallpapers"]
                                   withIntermediateDirectories:YES attributes:nil error:nil];
         if (gLogPath) [[NSFileManager defaultManager] createFileAtPath:gLogPath contents:nil attributes:nil];
+        gClass2ParentEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"BQClass2ParentEnabled"];
         BQLog(@"=== BQEscape start | iOS %@ | bundle %@ ===",
               [UIDevice currentDevice].systemVersion, [[NSBundle mainBundle] bundleIdentifier]);
         bq_load_mcm();
@@ -486,8 +497,9 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
 
     // 3. Class 2 parent-directory symlink. No app group needed: move the app's
     //    Library aside, create Library/Caches -> target, query the app's own
-    //    container (class 2), then restore Library.
-    {
+    //    container (class 2), then restore Library. Off by default: some builds
+    //    kill the process for moving Library, so this is opt-in from Settings.
+    if (gClass2ParentEnabled) {
         NSString *link = nil;
         int64_t h = bq_escape_class2_parent(target, &link);
         if (h >= 0) {
@@ -496,6 +508,8 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
             return h;
         }
         last = h;
+    } else {
+        BQLog(@"class2-parent disabled (enable in Settings if there is no app group)");
     }
 
     // 4. Class 13 direct MobileGestalt query (some 27.0.x builds).
@@ -527,6 +541,19 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
 
     BQLog(@"escape: all strategies failed (last=%lld) target=%@", (long long)last, target);
     return last;
+}
+
+static NSString *bq_escape_error(int64_t h) {
+    if (h == -6) {
+        return @"no app group — open Settings → Class-2 fallback (experimental), enable it, then retry";
+    }
+    if (h == -2) {
+        return @"class-2 fallback could not move Library — this build needs an app group on 27.2";
+    }
+    if (h == -5) {
+        return @"the MCM query returned no sandbox token — send Documents/bqtool.log";
+    }
+    return [NSString stringWithFormat:@"escape failed (%lld)", (long long)h];
 }
 
 void BQEndEscape(int64_t handle) {
@@ -710,7 +737,7 @@ BOOL BQCheckAccess(NSString *target, BOOL writable, NSString **err) {
     NSString *link = nil;
     int64_t h = BQEscape(target, &link);
     if (h < 0) {
-        if (err) *err = [NSString stringWithFormat:@"escape failed (%lld)", (long long)h];
+        if (err) *err = bq_escape_error(h);
         return NO;
     }
     BOOL ok = NO;
@@ -1196,7 +1223,7 @@ NSMutableDictionary *BQLoadGestalt(NSString **err) {
     NSString *link = nil;
     int64_t h = BQEscape(kMGCaches, &link);
     if (h < 0) {
-        if (err) *err = [NSString stringWithFormat:@"escape to MobileGestalt failed (%lld)", (long long)h];
+        if (err) *err = bq_escape_error(h);
         return nil;
     }
     NSString *plist = [link stringByAppendingPathComponent:@"com.apple.MobileGestalt.plist"];
@@ -1232,7 +1259,7 @@ BOOL BQSaveGestalt(NSDictionary *dict, NSString **err) {
     NSString *link = nil;
     int64_t h = BQEscape(kMGCaches, &link);
     if (h < 0) {
-        if (err) *err = [NSString stringWithFormat:@"escape to MobileGestalt failed (%lld)", (long long)h];
+        if (err) *err = bq_escape_error(h);
         return NO;
     }
     NSString *plist = [link stringByAppendingPathComponent:@"com.apple.MobileGestalt.plist"];
@@ -1260,7 +1287,7 @@ BOOL BQRestoreGestalt(NSString **err) {
     NSString *link = nil;
     int64_t h = BQEscape(kMGCaches, &link);
     if (h < 0) {
-        if (err) *err = [NSString stringWithFormat:@"escape failed (%lld)", (long long)h];
+        if (err) *err = bq_escape_error(h);
         return NO;
     }
     NSString *plist = [link stringByAppendingPathComponent:@"com.apple.MobileGestalt.plist"];

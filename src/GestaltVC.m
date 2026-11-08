@@ -202,7 +202,13 @@ static NSString *BQValueSummary(id v) {
     BQBusyView *busy = [BQBusyView showInView:self.view text:@"Reading MobileGestalt..."];
     dispatch_async(BQWorkQueue(), ^{
         NSString *err = nil;
-        NSMutableDictionary *mg = BQLoadGestalt(&err);
+        NSMutableDictionary *mg = nil;
+        @try {
+            mg = BQLoadGestalt(&err);
+        } @catch (NSException *e) {
+            err = [NSString stringWithFormat:@"exception: %@: %@", e.name, e.reason];
+            BQLog(@"loadGestalt exception: %@", err);
+        }
         dispatch_async(dispatch_get_main_queue(), ^{
             [busy hide];
             [self.refreshControl endRefreshing];
