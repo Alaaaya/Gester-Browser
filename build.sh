@@ -62,6 +62,22 @@ for lproj in "$ROOT"/src/*.lproj; do
     [ -d "$lproj" ] && cp -R "$lproj" "$APP/"
 done
 
+if [ -d "$ROOT/src/icons" ]; then
+    cp -R "$ROOT/src/icons/"* "$APP/"
+fi
+
+if command -v actool >/dev/null 2>&1 && [ -d "$ROOT/src/Assets.xcassets" ]; then
+    echo "[*] compiling asset catalog..."
+    actool "$ROOT/src/Assets.xcassets" \
+        --compile "$APP" \
+        --platform iphoneos \
+        --target-device iphone \
+        --target-device ipad \
+        --minimum-deployment-target 15.0 \
+        --app-icon AppIcon \
+        --output-partial-info-plist "$BUILD/assets_info.plist" >/dev/null
+fi
+
 echo "[*] signing..."
 ENTITLEMENTS="$ROOT/src/entitlements.plist"
 if command -v ldid >/dev/null 2>&1; then

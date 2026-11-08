@@ -7,8 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		022EE72F4F2064C3D04C2A9C /* AppIcon60x60@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 34D45483AC8BDCA750AD4AA0 /* AppIcon60x60@2x.png */; };
 		090AE68852E4E6A0600C7B77 /* LogVC.m in Sources */ = {isa = PBXBuildFile; fileRef = 69E5C13D8BF7CB1D26423A48 /* LogVC.m */; };
+		26252F6E3A00226FD7466EA6 /* AppIcon83.5x83.5@2x~ipad.png in Resources */ = {isa = PBXBuildFile; fileRef = 1CD40CDEE4213FA87D1AF318 /* AppIcon83.5x83.5@2x~ipad.png */; };
+		26B7AC7C3D3019C14C33323A /* AppIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = 3AF335216989BCFD2D4A4041 /* AppIcon.png */; };
+		2AED7FB8861A7FE4BA64BC5B /* AppIcon76x76@2x~ipad.png in Resources */ = {isa = PBXBuildFile; fileRef = 6BA6FEBA690E94D70DAB278A /* AppIcon76x76@2x~ipad.png */; };
 		2B9516024680F9BF01E9654B /* SettingsVC.m in Sources */ = {isa = PBXBuildFile; fileRef = 9FC1C783FD81D2505F2A1494 /* SettingsVC.m */; };
+		4D5889CDB87AC782DF3DEB25 /* AppIcon60x60@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = CB900EC6AF15DD738BD6E0BA /* AppIcon60x60@3x.png */; };
 		5CF883F50020AC031058B356 /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = FF27BBC2C5DEB2B17C1C2598 /* SceneDelegate.m */; };
 		7575DA454B0A03A2B5D82366 /* GestaltVC.m in Sources */ = {isa = PBXBuildFile; fileRef = 364CC9FA2896DCA38D924E48 /* GestaltVC.m */; };
 		863C302603492EBF6FF29016 /* TendiesExploreVC.m in Sources */ = {isa = PBXBuildFile; fileRef = 4289ED150F88B4E0773666D9 /* TendiesExploreVC.m */; };
@@ -19,6 +24,8 @@
 		AEB914DCE1226C17FD0C394C /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 410C32015DB25E61E248A2EF /* Localizable.strings */; };
 		BAD92862BECF5CC00819DB63 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 98A09C594D4BDD980FC5D5EB /* main.m */; };
 		D07F1E92DB622104AE7965F1 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 9ADD000DE63C2149C7F437D3 /* AppDelegate.m */; };
+		D3CEB650662DA8BC6A9D00DE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C76D1F3155F5414B7E68EFCE /* Assets.xcassets */; };
+		D528ED04A373621674DDA76D /* iTunesArtwork@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 5777F360C5C8F27036FF276B /* iTunesArtwork@2x.png */; };
 		E5659FDBC7C33F1D8A08DEEA /* CacheExtraEditVC.m in Sources */ = {isa = PBXBuildFile; fileRef = 02BE792EE98964C2197D6EEA /* CacheExtraEditVC.m */; };
 		F823FDEBDF798632E4804667 /* RootTabBarController.m in Sources */ = {isa = PBXBuildFile; fileRef = FAAE12318AE0AABC42C3F99B /* RootTabBarController.m */; };
 /* End PBXBuildFile section */
@@ -26,17 +33,22 @@
 /* Begin PBXFileReference section */
 		02BE792EE98964C2197D6EEA /* CacheExtraEditVC.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CacheExtraEditVC.m; sourceTree = "<group>"; };
 		15C9372E35AA417B22708A6F /* SceneDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SceneDelegate.h; sourceTree = "<group>"; };
+		1CD40CDEE4213FA87D1AF318 /* AppIcon83.5x83.5@2x~ipad.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon83.5x83.5@2x~ipad.png"; sourceTree = "<group>"; };
 		20FD308122F90AB372E2DE5A /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		34D45483AC8BDCA750AD4AA0 /* AppIcon60x60@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon60x60@2x.png"; sourceTree = "<group>"; };
 		364CC9FA2896DCA38D924E48 /* GestaltVC.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GestaltVC.m; sourceTree = "<group>"; };
 		3A4F3B30D8E3C3BA06A7623A /* uk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = uk; path = uk.lproj/Localizable.strings; sourceTree = "<group>"; };
+		3AF335216989BCFD2D4A4041 /* AppIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppIcon.png; sourceTree = "<group>"; };
 		3B9B4B9BCBCB38D10B428A33 /* RootTabBarController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RootTabBarController.h; sourceTree = "<group>"; };
 		41A5781D98EB89B5C84AEA8A /* SettingsVC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsVC.h; sourceTree = "<group>"; };
 		4289ED150F88B4E0773666D9 /* TendiesExploreVC.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TendiesExploreVC.m; sourceTree = "<group>"; };
 		50A00DE53132C23B50CB1635 /* BQCore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BQCore.h; sourceTree = "<group>"; };
 		52B1228304FEEFB630DB2E6A /* respring.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = respring.html; sourceTree = "<group>"; };
+		5777F360C5C8F27036FF276B /* iTunesArtwork@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "iTunesArtwork@2x.png"; sourceTree = "<group>"; };
 		60E0BCCC9E859CE12F36CA18 /* TendiesExploreVC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TendiesExploreVC.h; sourceTree = "<group>"; };
 		683D55E45258026B54F37F3B /* GestaltVC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GestaltVC.h; sourceTree = "<group>"; };
 		69E5C13D8BF7CB1D26423A48 /* LogVC.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LogVC.m; sourceTree = "<group>"; };
+		6BA6FEBA690E94D70DAB278A /* AppIcon76x76@2x~ipad.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon76x76@2x~ipad.png"; sourceTree = "<group>"; };
 		6C60C66AE5C503288DFEED6D /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Localizable.strings; sourceTree = "<group>"; };
 		73FA9C38168F2739236A3A28 /* PosterBoardVC.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PosterBoardVC.m; sourceTree = "<group>"; };
 		7BDD8616753913E7C034D163 /* BQCore.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BQCore.m; sourceTree = "<group>"; };
@@ -46,10 +58,12 @@
 		98A09C594D4BDD980FC5D5EB /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		9ADD000DE63C2149C7F437D3 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		9FC1C783FD81D2505F2A1494 /* SettingsVC.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SettingsVC.m; sourceTree = "<group>"; };
-		A7B3E6B07A46CCB1EEE8C727 /* BQTool.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BQTool.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A7B3E6B07A46CCB1EEE8C727 /* Gester.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Gester.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A84A57E80972F1AF20E711AA /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };
 		B1C77A5E147BF166C563B91C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		C29200A417EC9E2E3D7DD3A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C76D1F3155F5414B7E68EFCE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CB900EC6AF15DD738BD6E0BA /* AppIcon60x60@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon60x60@3x.png"; sourceTree = "<group>"; };
 		CD003C4E3FB85303B9192AAB /* LogVC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LogVC.h; sourceTree = "<group>"; };
 		CD55C502E8FBBF6CE9E0AD5E /* PosterBoardVC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PosterBoardVC.h; sourceTree = "<group>"; };
 		E566E22A852E2EE41F3CFC33 /* BQUI.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BQUI.m; sourceTree = "<group>"; };
@@ -63,7 +77,7 @@
 		03DE5FDD0989AB06A25BAFD4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A7B3E6B07A46CCB1EEE8C727 /* BQTool.app */,
+				A7B3E6B07A46CCB1EEE8C727 /* Gester.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,11 +90,25 @@
 			);
 			sourceTree = "<group>";
 		};
+		4347A758389AB4CED7B0C2EE /* icons */ = {
+			isa = PBXGroup;
+			children = (
+				3AF335216989BCFD2D4A4041 /* AppIcon.png */,
+				34D45483AC8BDCA750AD4AA0 /* AppIcon60x60@2x.png */,
+				CB900EC6AF15DD738BD6E0BA /* AppIcon60x60@3x.png */,
+				6BA6FEBA690E94D70DAB278A /* AppIcon76x76@2x~ipad.png */,
+				1CD40CDEE4213FA87D1AF318 /* AppIcon83.5x83.5@2x~ipad.png */,
+				5777F360C5C8F27036FF276B /* iTunesArtwork@2x.png */,
+			);
+			path = icons;
+			sourceTree = "<group>";
+		};
 		99FD7704355EF3920C6A7B50 /* src */ = {
 			isa = PBXGroup;
 			children = (
 				20FD308122F90AB372E2DE5A /* AppDelegate.h */,
 				9ADD000DE63C2149C7F437D3 /* AppDelegate.m */,
+				C76D1F3155F5414B7E68EFCE /* Assets.xcassets */,
 				50A00DE53132C23B50CB1635 /* BQCore.h */,
 				7BDD8616753913E7C034D163 /* BQCore.m */,
 				EAB0739C77B8F21DE5DE13DF /* BQUI.h */,
@@ -104,6 +132,7 @@
 				9FC1C783FD81D2505F2A1494 /* SettingsVC.m */,
 				60E0BCCC9E859CE12F36CA18 /* TendiesExploreVC.h */,
 				4289ED150F88B4E0773666D9 /* TendiesExploreVC.m */,
+				4347A758389AB4CED7B0C2EE /* icons */,
 				410C32015DB25E61E248A2EF /* Localizable.strings */,
 			);
 			path = src;
@@ -127,7 +156,7 @@
 			packageProductDependencies = (
 			);
 			productName = Gester;
-			productReference = A7B3E6B07A46CCB1EEE8C727 /* BQTool.app */;
+			productReference = A7B3E6B07A46CCB1EEE8C727 /* Gester.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -140,6 +169,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					96BAEECD6545B474279000BE = {
+						DevelopmentTeam = ZX32KR6KKW;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -174,7 +204,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				26B7AC7C3D3019C14C33323A /* AppIcon.png in Resources */,
+				022EE72F4F2064C3D04C2A9C /* AppIcon60x60@2x.png in Resources */,
+				4D5889CDB87AC782DF3DEB25 /* AppIcon60x60@3x.png in Resources */,
+				2AED7FB8861A7FE4BA64BC5B /* AppIcon76x76@2x~ipad.png in Resources */,
+				26252F6E3A00226FD7466EA6 /* AppIcon83.5x83.5@2x~ipad.png in Resources */,
+				D3CEB650662DA8BC6A9D00DE /* Assets.xcassets in Resources */,
 				AEB914DCE1226C17FD0C394C /* Localizable.strings in Resources */,
+				D528ED04A373621674DDA76D /* iTunesArtwork@2x.png in Resources */,
 				ACA8321A2D2DA377C3A12AE8 /* respring.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -228,7 +265,7 @@
 				CODE_SIGN_ENTITLEMENTS = src/entitlements.plist;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 8PQR26VG3C;
+				DEVELOPMENT_TEAM = ZX32KR6KKW;
 				INFOPLIST_FILE = src/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -237,16 +274,11 @@
 				);
 				OTHER_LDFLAGS = (
 					"-lz",
-					"-framework",
-					UIKit,
-					"-framework",
-					Foundation,
-					"-framework",
-					CoreFoundation,
-					"-framework",
-					CoreGraphics,
-					"-framework",
-					WebKit,
+					"-framework UIKit",
+					"-framework Foundation",
+					"-framework CoreFoundation",
+					"-framework CoreGraphics",
+					"-framework WebKit",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kamui.escape;
 				PRODUCT_NAME = BQTool;
@@ -327,7 +359,7 @@
 				CODE_SIGN_ENTITLEMENTS = src/entitlements.plist;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 8PQR26VG3C;
+				DEVELOPMENT_TEAM = ZX32KR6KKW;
 				INFOPLIST_FILE = src/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -336,16 +368,11 @@
 				);
 				OTHER_LDFLAGS = (
 					"-lz",
-					"-framework",
-					UIKit,
-					"-framework",
-					Foundation,
-					"-framework",
-					CoreFoundation,
-					"-framework",
-					CoreGraphics,
-					"-framework",
-					WebKit,
+					"-framework UIKit",
+					"-framework Foundation",
+					"-framework CoreFoundation",
+					"-framework CoreGraphics",
+					"-framework WebKit",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kamui.escape;
 				PRODUCT_NAME = BQTool;
