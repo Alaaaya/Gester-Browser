@@ -1,4 +1,4 @@
-# KAMUI 2.3 — iOS 27.0.1–27.2 sandbox escape + MobileGestalt editor
+# KAMUI 2.3.1 — iOS 27.0.1–27.2 sandbox escape + MobileGestalt editor
 
 **Open source, MIT licensed and free for everyone.** There is no tester list,
 private group or allowlist. Anyone can use, modify and redistribute KAMUI and
@@ -6,14 +6,14 @@ the MobileGestalt editor.
 
 ## Assets
 
-- `KAMUI-2.3.ipa` — the app. Install it on any supported device.
+- `KAMUI-2.3.1.ipa` — the app. Install it on any supported device.
 - Source code and build instructions are in the repository.
 
-## 2.3 hotfix
+## 2.3.1 crash-guard hotfix
 
 2.2 ran the class-2 parent fallback automatically. On builds that terminate
 the app when its own `Library` is moved, that looked like a launch crash. In
-2.3 the fallback is **off by default** and available in
+2.3.1 the fallback is **off by default** and available in
 **Settings → Class-2 fallback (experimental)**. With it off, the app launches
 normally on every build; with it on, the log records `class2-parent` and the
 result.
