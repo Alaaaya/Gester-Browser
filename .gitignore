@@ -1,0 +1,8 @@
+build/
+release/*.ipa
+*.ipa
+OriginalGestalt*.plist
+bqtool.log
+logs/
+sample.tendies
+.DS_Store
