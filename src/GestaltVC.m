@@ -32,7 +32,7 @@ static NSArray<NSString *> *BQIPadOSKeys(void) {
 
 static NSArray<NSDictionary *> *BQAIModelOptions(void) {
     return @[
-        @{@"title": @"Original", @"product": @"", @"hw": @"", @"cpu": @"", @"reg": @""},
+        @{@"title": NSLocalizedString(@"Original", nil), @"product": @"", @"hw": @"", @"cpu": @"", @"reg": @""},
         @{@"title": @"iPhone 15 Pro", @"product": @"iPhone16,1", @"hw": @"D83AP", @"cpu": @"t8130", @"reg": @"A2848"},
         @{@"title": @"iPhone 15 Pro Max", @"product": @"iPhone16,2", @"hw": @"D84AP", @"cpu": @"t8130", @"reg": @"A2849"},
         @{@"title": @"iPhone 16 Pro", @"product": @"iPhone17,1", @"hw": @"D93AP", @"cpu": @"t8140", @"reg": @"A3083"},
@@ -156,18 +156,19 @@ static NSString *BQValueSummary(id v) {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"MobileGestalt";
+    self.title = NSLocalizedString(@"MobileGestalt", nil);
     self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeOnDrag;
 
-    UIBarButtonItem *apply = [[UIBarButtonItem alloc] initWithTitle:@"Apply"
+    UIBarButtonItem *apply = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"Apply", nil)
                                                               style:UIBarButtonItemStyleDone
                                                              target:self
                                                              action:@selector(applyTweaks)];
     UIBarButtonItem *add = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd
                                                                          target:self
                                                                          action:@selector(addKey)];
+    apply.enabled = NO;
     self.navigationItem.rightBarButtonItems = @[apply, add];
-    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Revert"
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"Revert", nil)
                                                                              style:UIBarButtonItemStylePlain
                                                                             target:self
                                                                             action:@selector(revertTweaks)];
@@ -177,16 +178,16 @@ static NSString *BQValueSummary(id v) {
     self.refreshControl = rc;
 
     self.presets = @[
-        @{@"title": @"Always-On Display", @"keys": @[@"2OOJf1VhaM7NxfRok3HbWQ", @"j8/Omm6s1lsmTDFsXjsBfA"], @"value": @YES},
-        @{@"title": @"AOD Vibrancy", @"keys": @[@"ykpu7qyhqFweVMKtxNylWA"], @"value": @YES},
-        @{@"title": @"Boot Chime", @"keys": @[@"QHxt+hGLaBPbQJbXiUJX3w"], @"value": @YES},
-        @{@"title": @"80% Charge Limit", @"keys": @[@"37NVydb//GP/GrhuTN+exg"], @"value": @YES},
-        @{@"title": @"Tap to Wake", @"keys": @[@"yZf3GTRMGTuwSV/lD7Cagw"], @"value": @YES},
-        @{@"title": @"Stage Manager", @"keys": @[@"qeaj75wk3HF4DwQ8qbIi7g"], @"value": @YES},
-        @{@"title": @"Apple Pencil", @"keys": @[@"yhHcB0iH0d1XzPO/CFd3ow"], @"value": @YES},
-        @{@"title": @"Action Button", @"keys": @[@"cT44WE1EohiwRzhsZ8xEsw"], @"value": @YES},
-        @{@"title": @"Collision SOS", @"keys": @[@"HCzWusHQwZDea6nNhaKndw"], @"value": @YES},
-        @{@"title": @"Disable Parallax", @"keys": @[@"UIParallaxCapability"], @"value": @NO},
+        @{@"title": NSLocalizedString(@"Always-On Display", nil), @"keys": @[@"2OOJf1VhaM7NxfRok3HbWQ", @"j8/Omm6s1lsmTDFsXjsBfA"], @"value": @YES},
+        @{@"title": NSLocalizedString(@"AOD Vibrancy", nil), @"keys": @[@"ykpu7qyhqFweVMKtxNylWA"], @"value": @YES},
+        @{@"title": NSLocalizedString(@"Boot Chime", nil), @"keys": @[@"QHxt+hGLaBPbQJbXiUJX3w"], @"value": @YES},
+        @{@"title": NSLocalizedString(@"80% Charge Limit", nil), @"keys": @[@"37NVydb//GP/GrhuTN+exg"], @"value": @YES},
+        @{@"title": NSLocalizedString(@"Tap to Wake", nil), @"keys": @[@"yZf3GTRMGTuwSV/lD7Cagw"], @"value": @YES},
+        @{@"title": NSLocalizedString(@"Stage Manager", nil), @"keys": @[@"qeaj75wk3HF4DwQ8qbIi7g"], @"value": @YES},
+        @{@"title": NSLocalizedString(@"Apple Pencil", nil), @"keys": @[@"yhHcB0iH0d1XzPO/CFd3ow"], @"value": @YES},
+        @{@"title": NSLocalizedString(@"Action Button", nil), @"keys": @[@"cT44WE1EohiwRzhsZ8xEsw"], @"value": @YES},
+        @{@"title": NSLocalizedString(@"Collision SOS", nil), @"keys": @[@"HCzWusHQwZDea6nNhaKndw"], @"value": @YES},
+        @{@"title": NSLocalizedString(@"Disable Parallax", nil), @"keys": @[@"UIParallaxCapability"], @"value": @NO},
     ];
     [self loadGestalt];
 }
@@ -199,7 +200,7 @@ static NSString *BQValueSummary(id v) {
 - (void)loadGestalt {
     if (self.loading) { [self.refreshControl endRefreshing]; return; }
     self.loading = YES;
-    BQBusyView *busy = [BQBusyView showInView:self.view text:@"Reading MobileGestalt..."];
+    BQBusyView *busy = [BQBusyView showInView:self.view text:NSLocalizedString(@"Reading MobileGestalt...", nil)];
     dispatch_async(BQWorkQueue(), ^{
         NSString *err = nil;
         NSMutableDictionary *mg = nil;
@@ -214,9 +215,22 @@ static NSString *BQValueSummary(id v) {
             [self.refreshControl endRefreshing];
             self.loading = NO;
             if (!mg) {
-                BQAlert(self, @"MobileGestalt", err ?: @"load failed");
+                self.navigationItem.rightBarButtonItems.firstObject.enabled = NO;
+                self.mg = nil;
+                self.keys = @[];
+                [self.tableView reloadData];
+                NSString *msg = err ?: NSLocalizedString(@"MobileGestalt is not loaded. The read failed; check the log and retry.", nil);
+                UIAlertController *a = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"MobileGestalt", nil)
+                                                                           message:msg
+                                                                    preferredStyle:UIAlertControllerStyleAlert];
+                [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
+                [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Retry", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
+                    [self loadGestalt];
+                }]];
+                [self presentViewController:a animated:YES completion:nil];
                 return;
             }
+            self.navigationItem.rightBarButtonItems.firstObject.enabled = YES;
             self.mg = mg;
             NSMutableDictionary *ce = [mg[@"CacheExtra"] isKindOfClass:[NSDictionary class]]
                 ? [mg[@"CacheExtra"] mutableCopy] : [NSMutableDictionary dictionary];
@@ -340,7 +354,7 @@ static NSString *BQValueSummary(id v) {
 
 - (void)chooseSubtype {
     NSArray *opts = @[
-        @{@"title": @"Original", @"value": @0},
+        @{@"title": NSLocalizedString(@"Original", nil), @"value": @0},
         @{@"title": @"iPhone 14 Pro (2556)", @"value": @2556},
         @{@"title": @"iPhone 14 Pro Max (2796)", @"value": @2796},
         @{@"title": @"iPhone 15 Pro (2556)", @"value": @2556},
@@ -350,8 +364,8 @@ static NSString *BQValueSummary(id v) {
         @{@"title": @"iPhone Air (2736)", @"value": @2736},
         @{@"title": @"iPhone 17 / 18 (custom subtype...)", @"value": @(-1)},
     ];
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Dynamic Island model"
-                                                               message:@"Sets ArtworkDeviceSubType and enables Dynamic Island. 17/18 values are experimental; use a custom subtype if the island position is wrong."
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Dynamic Island model", nil)
+                                                               message:NSLocalizedString(@"Sets ArtworkDeviceSubType and enables Dynamic Island. 17/18 values are experimental; use a custom subtype if the island position is wrong.", nil)
                                                         preferredStyle:UIAlertControllerStyleActionSheet];
     for (NSDictionary *o in opts) {
         [a addAction:[UIAlertAction actionWithTitle:o[@"title"] style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
@@ -363,7 +377,7 @@ static NSString *BQValueSummary(id v) {
             }
         }]];
     }
-    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
     UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:1 inSection:2]];
     a.popoverPresentationController.sourceView = cell ?: self.view;
     a.popoverPresentationController.sourceRect = cell ? cell.bounds : CGRectMake(self.view.bounds.size.width/2, self.view.bounds.size.height/2, 1, 1);
@@ -371,15 +385,15 @@ static NSString *BQValueSummary(id v) {
 }
 
 - (void)askCustomSubtype {
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Custom subtype"
-                                                               message:@"Enter the ArtworkDeviceSubType integer. Wrong values can break layout. Try 2976 for 17/18."
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Custom subtype", nil)
+                                                               message:NSLocalizedString(@"Enter the ArtworkDeviceSubType integer. Wrong values can break layout. Try 2976 for 17/18.", nil)
                                                         preferredStyle:UIAlertControllerStyleAlert];
     [a addTextFieldWithConfigurationHandler:^(UITextField *tf) {
         tf.keyboardType = UIKeyboardTypeNumberPad;
         tf.placeholder = @"e.g. 2976";
     }];
-    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    [a addAction:[UIAlertAction actionWithTitle:@"Apply" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
+    [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Apply", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
         NSInteger v = [BQTrim(a.textFields.firstObject.text) integerValue];
         if (v > 0) [self setSubtype:v];
     }]];
@@ -391,26 +405,26 @@ static NSString *BQValueSummary(id v) {
 - (NSString *)versionSummary {
     NSString *v = self.cacheExtra[kVersionKey];
     NSString *b = self.cacheExtra[kBuildKey];
-    if (!v.length && !b.length) return @"off";
+    if (!v.length && !b.length) return NSLocalizedString(@"off", nil);
     return [NSString stringWithFormat:@"%@ (%@)", v.length ? v : @"?", b.length ? b : @"?"];
 }
 
 - (void)spoofVersion {
     NSString *v = self.cacheExtra[kVersionKey] ?: [UIDevice currentDevice].systemVersion ?: @"";
     NSString *b = self.cacheExtra[kBuildKey] ?: self.mg[@"CacheVersion"] ?: @"";
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Spoof iOS version"
-                                                               message:@"Writes ProductVersion/BuildVersion into MobileGestalt. Apps and system components that query MG will see these values. OTA/update behavior may break. Keep the original backup."
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Spoof iOS version", nil)
+                                                               message:NSLocalizedString(@"Writes ProductVersion/BuildVersion into MobileGestalt. Apps and system components that query MG will see these values. OTA/update behavior may break. Keep the original backup.", nil)
                                                         preferredStyle:UIAlertControllerStyleAlert];
     [a addTextFieldWithConfigurationHandler:^(UITextField *tf) {
-        tf.placeholder = @"Marketing version (e.g. 27.2)";
+        tf.placeholder = NSLocalizedString(@"Marketing version (e.g. 27.2)", nil);
         tf.text = v;
     }];
     [a addTextFieldWithConfigurationHandler:^(UITextField *tf) {
-        tf.placeholder = @"Build (e.g. 24B115)";
+        tf.placeholder = NSLocalizedString(@"Build (e.g. 24B115)", nil);
         tf.text = b;
     }];
-    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    [a addAction:[UIAlertAction actionWithTitle:@"Remove" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x) {
+    [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Remove", nil) style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x) {
         [self.cacheExtra removeObjectForKey:kVersionKey];
         [self.cacheExtra removeObjectForKey:kBuildKey];
         [self.cacheExtra removeObjectForKey:kHumanVersionKey];
@@ -419,7 +433,7 @@ static NSString *BQValueSummary(id v) {
         [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:3]
                      withRowAnimation:UITableViewRowAnimationAutomatic];
     }]];
-    [a addAction:[UIAlertAction actionWithTitle:@"Apply" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
+    [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Apply", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
         NSString *nv = BQTrim(a.textFields[0].text);
         NSString *nb = BQTrim(a.textFields[1].text);
         if (nv.length) self.cacheExtra[kVersionKey] = nv;
@@ -442,12 +456,12 @@ static NSString *BQValueSummary(id v) {
         NSString *op = o[@"product"];
         if (op.length && [p isEqualToString:op]) return o[@"title"];
     }
-    return @"Original";
+    return NSLocalizedString(@"Original", nil);
 }
 
 - (void)chooseAIModel {
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:@"AI device spoof"
-                                                               message:@"Spoofs ProductType, HardwareModel and CPUModel so Apple Intelligence/Siri checks see a supported device. This can temporarily break Face ID and system stability. A backup is kept in OriginalGestalt.plist."
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"AI device spoof", nil)
+                                                               message:NSLocalizedString(@"Spoofs ProductType, HardwareModel and CPUModel so Apple Intelligence/Siri checks see a supported device. This can temporarily break Face ID and system stability. A backup is kept in OriginalGestalt.plist.", nil)
                                                         preferredStyle:UIAlertControllerStyleActionSheet];
     for (NSDictionary *o in BQAIModelOptions()) {
         [a addAction:[UIAlertAction actionWithTitle:o[@"title"] style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
@@ -473,7 +487,7 @@ static NSString *BQValueSummary(id v) {
                          withRowAnimation:UITableViewRowAnimationAutomatic];
         }]];
     }
-    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
     UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:3 inSection:3]];
     a.popoverPresentationController.sourceView = cell ?: self.view;
     a.popoverPresentationController.sourceRect = cell ? cell.bounds : CGRectMake(self.view.bounds.size.width/2, self.view.bounds.size.height/2, 1, 1);
@@ -502,7 +516,7 @@ static NSString *BQValueSummary(id v) {
     UIAlertController *a = [UIAlertController alertControllerWithTitle:title
                                                                message:message
                                                         preferredStyle:UIAlertControllerStyleAlert];
-    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:^(UIAlertAction *x) {
+    [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction *x) {
         sw.on = NO;
     }]];
     [a addAction:[UIAlertAction actionWithTitle:@"Continue" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x) {
@@ -528,16 +542,16 @@ static NSString *BQValueSummary(id v) {
 - (void)advancedSwitchChanged:(UISwitch *)sw {
     NSInteger row = sw.tag;
     if (row == 1) {
-        [self riskySwitch:sw title:@"Enable Apple Intelligence?"
-                  message:@"Writes DeviceSupportsGenerativeModelSystems. On iOS 27.2 eligibility checks may still block AI, and this can affect system stability. Keep the backup."
+        [self riskySwitch:sw title:NSLocalizedString(@"Enable Apple Intelligence?", nil)
+                  message:NSLocalizedString(@"Writes DeviceSupportsGenerativeModelSystems. On iOS 27.2 eligibility checks may still block AI, and this can affect system stability. Keep the backup.", nil)
                    action:^{
             if (sw.isOn) self.cacheExtra[kAIKey] = @1;
             else [self.cacheExtra removeObjectForKey:kAIKey];
             BQLog(@"Apple Intelligence -> %d", sw.isOn);
         }];
     } else if (row == 2) {
-        [self riskySwitch:sw title:@"Enable Siri AI US region?"
-                  message:@"Sets the US region and generative-model capability. Force-enabling on unsupported devices can break Face ID or system stability."
+        [self riskySwitch:sw title:NSLocalizedString(@"Enable Siri AI US region?", nil)
+                  message:NSLocalizedString(@"Sets the US region and generative-model capability. Force-enabling on unsupported devices can break Face ID or system stability.", nil)
                    action:^{
             if (sw.isOn) {
                 self.cacheExtra[kAIKey] = @1;
@@ -552,27 +566,27 @@ static NSString *BQValueSummary(id v) {
             BQLog(@"Siri AI region -> %d", sw.isOn);
         }];
     } else if (row == 4) {
-        [self riskySwitch:sw title:@"Enable iPadOS mode?"
-                  message:@"Patches the binary CacheData blob and five Medusa/Stage Manager keys. This is experimental and high risk: layout, multitasking and boot behavior can break. A full restore may be required."
+        [self riskySwitch:sw title:NSLocalizedString(@"Enable iPadOS mode?", nil)
+                  message:NSLocalizedString(@"Patches the binary CacheData blob and five Medusa/Stage Manager keys. This is experimental and high risk: layout, multitasking and boot behavior can break. A full restore may be required.", nil)
                    action:^{
             NSString *err = nil;
             if (![self setIPadOS:sw.isOn error:&err]) {
                 sw.on = NO;
-                BQAlert(self, @"iPadOS mode failed", err ?: @"CacheData patch failed");
+                BQAlert(self, NSLocalizedString(@"iPadOS mode failed", nil), err ?: NSLocalizedString(@"CacheData patch failed", nil));
             }
             BQLog(@"iPadOS mode -> %d", sw.isOn);
         }];
     } else if (row == 5) {
-        [self riskySwitch:sw title:@"Enable Security Research Device?"
-                  message:@"Sets ResearchFuse. iOS will treat this iPhone as a research-fused test device. This is cosmetic on most builds but can affect services and is high risk."
+        [self riskySwitch:sw title:NSLocalizedString(@"Enable Security Research Device?", nil)
+                  message:NSLocalizedString(@"Sets ResearchFuse. iOS will treat this iPhone as a research-fused test device. This is cosmetic on most builds but can affect services and is high risk.", nil)
                    action:^{
             if (sw.isOn) self.cacheExtra[kResearchKey] = @1;
             else [self.cacheExtra removeObjectForKey:kResearchKey];
             BQLog(@"ResearchFuse -> %d", sw.isOn);
         }];
     } else if (row == 6) {
-        [self riskySwitch:sw title:@"Enable Store Demo Mode?"
-                  message:@"Sets StoreDemoMode. iOS may show demo-device messaging and change setup behavior. High risk; keep the backup."
+        [self riskySwitch:sw title:NSLocalizedString(@"Enable Store Demo Mode?", nil)
+                  message:NSLocalizedString(@"Sets StoreDemoMode. iOS may show demo-device messaging and change setup behavior. High risk; keep the backup.", nil)
                    action:^{
             if (sw.isOn) self.cacheExtra[kStoreDemoKey] = @1;
             else [self.cacheExtra removeObjectForKey:kStoreDemoKey];
@@ -586,21 +600,25 @@ static NSString *BQValueSummary(id v) {
 #pragma mark - Actions
 
 - (void)applyTweaks {
-    if (!self.mg) { BQAlert(self, @"MobileGestalt", @"Not loaded yet."); return; }
+    if (!self.mg) {
+        BQAlert(self, NSLocalizedString(@"MobileGestalt", nil),
+                NSLocalizedString(@"MobileGestalt is not loaded. The read failed; check the log and retry.", nil));
+        return;
+    }
     self.mg[@"CacheExtra"] = self.cacheExtra;
-    BQBusyView *busy = [BQBusyView showInView:self.view text:@"Writing MobileGestalt..."];
+    BQBusyView *busy = [BQBusyView showInView:self.view text:NSLocalizedString(@"Writing MobileGestalt...", nil)];
     NSDictionary *snapshot = [self.mg copy];
     dispatch_async(BQWorkQueue(), ^{
         NSString *err = nil;
         BOOL ok = BQSaveGestalt(snapshot, &err);
         dispatch_async(dispatch_get_main_queue(), ^{
             [busy hide];
-            if (!ok) { BQAlert(self, @"Apply failed", err ?: @"unknown error"); return; }
-            UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Applied"
-                                                                       message:@"MobileGestalt written. Respring to apply the changes."
+            if (!ok) { BQAlert(self, NSLocalizedString(@"Apply failed", nil), err ?: NSLocalizedString(@"unknown error", nil)); return; }
+            UIAlertController *a = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Applied", nil)
+                                                                       message:NSLocalizedString(@"MobileGestalt written. Respring to apply the changes.", nil)
                                                                 preferredStyle:UIAlertControllerStyleAlert];
-            [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-            [a addAction:[UIAlertAction actionWithTitle:@"Respring" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
+            [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
+            [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Respring", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
                 BQRespring();
             }]];
             [self presentViewController:a animated:YES completion:nil];
@@ -609,19 +627,19 @@ static NSString *BQValueSummary(id v) {
 }
 
 - (void)revertTweaks {
-    BQConfirm(self, @"Revert MobileGestalt?", @"Restore OriginalGestalt.plist and overwrite the live cache.", ^{
-        BQBusyView *busy = [BQBusyView showInView:self.view text:@"Restoring MobileGestalt..."];
+    BQConfirm(self, NSLocalizedString(@"Revert MobileGestalt?", nil), NSLocalizedString(@"Restore OriginalGestalt.plist and overwrite the live cache.", nil), ^{
+        BQBusyView *busy = [BQBusyView showInView:self.view text:NSLocalizedString(@"Restoring MobileGestalt...", nil)];
         dispatch_async(BQWorkQueue(), ^{
             NSString *err = nil;
             BOOL ok = BQRestoreGestalt(&err);
             dispatch_async(dispatch_get_main_queue(), ^{
                 [busy hide];
-                if (!ok) { BQAlert(self, @"Revert failed", err ?: @"unknown error"); return; }
-                UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Reverted"
-                                                                           message:@"Original MobileGestalt restored. Respring or reboot."
+                if (!ok) { BQAlert(self, NSLocalizedString(@"Revert failed", nil), err ?: NSLocalizedString(@"unknown error", nil)); return; }
+                UIAlertController *a = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Reverted", nil)
+                                                                           message:NSLocalizedString(@"Original MobileGestalt restored. Respring or reboot.", nil)
                                                                     preferredStyle:UIAlertControllerStyleAlert];
-                [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-                [a addAction:[UIAlertAction actionWithTitle:@"Respring" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) { BQRespring(); }]];
+                [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
+                [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Respring", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) { BQRespring(); }]];
                 [self presentViewController:a animated:YES completion:nil];
             });
         });
@@ -629,7 +647,7 @@ static NSString *BQValueSummary(id v) {
 }
 
 - (void)respring {
-    BQConfirm(self, @"Respring?", @"This restarts SpringBoard. Open apps will be closed.", ^{ BQRespring(); });
+    BQConfirm(self, @"Respring?", NSLocalizedString(@"This restarts SpringBoard. Open apps will be closed.", nil), ^{ BQRespring(); });
 }
 
 - (void)addKey {
@@ -673,11 +691,11 @@ static NSString *BQValueSummary(id v) {
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     switch (section) {
-        case 0: return @"Actions";
-        case 1: return @"Tweaks";
-        case 2: return @"Dynamic Island";
-        case 3: return @"Advanced";
-        case 4: return @"CacheExtra";
+        case 0: return NSLocalizedString(@"Actions", nil);
+        case 1: return NSLocalizedString(@"Tweaks", nil);
+        case 2: return NSLocalizedString(@"Dynamic Island", nil);
+        case 3: return NSLocalizedString(@"Advanced", nil);
+        case 4: return NSLocalizedString(@"CacheExtra", nil);
     }
     return nil;
 }
@@ -685,13 +703,13 @@ static NSString *BQValueSummary(id v) {
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     switch (section) {
         case 1:
-            return @"These tweaks can break features or softbrick the device if misused. Backup exists in Documents/OriginalGestalt.plist.";
+            return NSLocalizedString(@"These tweaks can break features or softbrick the device if misused. Backup exists in Documents/OriginalGestalt.plist.", nil);
         case 2:
-            return @"ArtworkDeviceSubType controls Dynamic Island position. 17/18 values are experimental; use a custom subtype if the island overlaps the status bar.";
+            return NSLocalizedString(@"ArtworkDeviceSubType controls Dynamic Island position. 17/18 values are experimental; use a custom subtype if the island overlaps the status bar.", nil);
         case 3:
-            return @"Advanced tweaks are high risk. iPadOS mode patches CacheData. AI/Siri spoofing can break Face ID. Store Demo and ResearchFuse change device identity. Keep the original backup.";
+            return NSLocalizedString(@"Advanced tweaks are high risk. iPadOS mode patches CacheData. AI/Siri spoofing can break Face ID. Store Demo and ResearchFuse change device identity. Keep the original backup.", nil);
         case 4:
-            return @"Tap a key to edit; swipe left to delete. Changes are written only when you tap Apply.";
+            return NSLocalizedString(@"Tap a key to edit; swipe left to delete. Changes are written only when you tap Apply.", nil);
     }
     return nil;
 }
@@ -703,13 +721,13 @@ static NSString *BQValueSummary(id v) {
         cell.accessoryType = UITableViewCellAccessoryNone;
         cell.textLabel.textAlignment = NSTextAlignmentLeft;
         if (indexPath.row == 0) {
-            cell.textLabel.text = @"Apply Tweaks";
+            cell.textLabel.text = NSLocalizedString(@"Apply Tweaks", nil);
             cell.textLabel.textColor = self.view.tintColor;
         } else if (indexPath.row == 1) {
-            cell.textLabel.text = @"Revert Tweaks";
+            cell.textLabel.text = NSLocalizedString(@"Revert Tweaks", nil);
             cell.textLabel.textColor = [UIColor systemRedColor];
         } else {
-            cell.textLabel.text = @"Respring";
+            cell.textLabel.text = NSLocalizedString(@"Respring", nil);
             cell.textLabel.textColor = self.view.tintColor;
         }
         return cell;
@@ -736,7 +754,7 @@ static NSString *BQValueSummary(id v) {
         if (indexPath.row == 0) {
             UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"island"];
             if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"island"];
-            cell.textLabel.text = @"Enable Dynamic Island";
+            cell.textLabel.text = NSLocalizedString(@"Enable Dynamic Island", nil);
             cell.selectionStyle = UITableViewCellSelectionStyleNone;
             UISwitch *sw = (UISwitch *)cell.accessoryView;
             if (![sw isKindOfClass:[UISwitch class]]) {
@@ -751,7 +769,7 @@ static NSString *BQValueSummary(id v) {
         if (indexPath.row == 1) {
             UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"subtype"];
             if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"subtype"];
-            cell.textLabel.text = @"Model / position";
+            cell.textLabel.text = NSLocalizedString(@"Model / position", nil);
             cell.detailTextLabel.text = [self currentSubtypeName];
             cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
@@ -759,7 +777,7 @@ static NSString *BQValueSummary(id v) {
         }
         UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"resetisland"];
         if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"resetisland"];
-        cell.textLabel.text = @"Disable + reset to original";
+        cell.textLabel.text = NSLocalizedString(@"Disable + reset to original", nil);
         cell.textLabel.textColor = [UIColor systemRedColor];
         cell.accessoryType = UITableViewCellAccessoryNone;
         return cell;
@@ -769,10 +787,10 @@ static NSString *BQValueSummary(id v) {
             UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"advancedvalue"];
             if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"advancedvalue"];
             if (indexPath.row == 0) {
-                cell.textLabel.text = @"Spoof iOS version";
+                cell.textLabel.text = NSLocalizedString(@"Spoof iOS version", nil);
                 cell.detailTextLabel.text = [self versionSummary];
             } else {
-                cell.textLabel.text = @"AI device spoof";
+                cell.textLabel.text = NSLocalizedString(@"AI device spoof", nil);
                 cell.detailTextLabel.text = [self aiModelName];
             }
             cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
@@ -790,11 +808,11 @@ static NSString *BQValueSummary(id v) {
             cell.accessoryView = sw;
         }
         sw.tag = indexPath.row;
-        if (indexPath.row == 1) { cell.textLabel.text = @"Apple Intelligence"; sw.on = [self aiOn]; }
-        else if (indexPath.row == 2) { cell.textLabel.text = @"Siri AI (US region)"; sw.on = [self siriOn]; }
-        else if (indexPath.row == 4) { cell.textLabel.text = @"iPadOS mode (experimental)"; sw.on = [self ipadOSOn]; }
-        else if (indexPath.row == 5) { cell.textLabel.text = @"Security Research Device"; sw.on = [self researchOn]; }
-        else { cell.textLabel.text = @"Store Demo Mode"; sw.on = [self storeDemoOn]; }
+        if (indexPath.row == 1) { cell.textLabel.text = NSLocalizedString(@"Apple Intelligence", nil); sw.on = [self aiOn]; }
+        else if (indexPath.row == 2) { cell.textLabel.text = NSLocalizedString(@"Siri AI (US region)", nil); sw.on = [self siriOn]; }
+        else if (indexPath.row == 4) { cell.textLabel.text = NSLocalizedString(@"iPadOS mode (experimental)", nil); sw.on = [self ipadOSOn]; }
+        else if (indexPath.row == 5) { cell.textLabel.text = NSLocalizedString(@"Security Research Device", nil); sw.on = [self researchOn]; }
+        else { cell.textLabel.text = NSLocalizedString(@"Store Demo Mode", nil); sw.on = [self storeDemoOn]; }
         return cell;
     }
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"ce"];
@@ -831,7 +849,7 @@ static NSString *BQValueSummary(id v) {
 - (UISwipeActionsConfiguration *)tableView:(UITableView *)tableView trailingSwipeActionsConfigurationForRowAtIndexPath:(NSIndexPath *)indexPath {
     if (indexPath.section != 4) return nil;
     UIContextualAction *del = [UIContextualAction contextualActionWithStyle:UIContextualActionStyleDestructive
-                                                                     title:@"Delete"
+                                                                     title:NSLocalizedString(@"Delete", nil)
                                                                    handler:^(UIContextualAction *a, UIView *v, void (^done)(BOOL)) {
         NSString *key = self.keys[indexPath.row];
         [self.cacheExtra removeObjectForKey:key];

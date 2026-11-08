@@ -21,11 +21,11 @@ static NSString * const kAppleCatalog = @"https://raw.githubusercontent.com/SerS
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"Explore Wallpapers";
+    self.title = NSLocalizedString(@"Explore Wallpapers", nil);
     self.search = [[UISearchController alloc] initWithSearchResultsController:nil];
     self.search.searchResultsUpdater = self;
     self.search.obscuresBackgroundDuringPresentation = NO;
-    self.search.searchBar.placeholder = @"Search wallpapers";
+    self.search.searchBar.placeholder = NSLocalizedString(@"Search wallpapers", nil);
     self.navigationItem.searchController = self.search;
     self.navigationItem.hidesSearchBarWhenScrolling = NO;
     self.definesPresentationContext = YES;
@@ -85,7 +85,7 @@ static NSString * const kAppleCatalog = @"https://raw.githubusercontent.com/SerS
         self.items = unique;
         self.filtered = unique;
         [self.tableView reloadData];
-        if (firstError && unique.count == 0) BQAlert(self, @"Catalog failed", firstError);
+        if (firstError && unique.count == 0) BQAlert(self, NSLocalizedString(@"Catalog failed", nil), firstError);
         BQLog(@"tendies catalog: %lu entries", (unsigned long)unique.count);
     });
 }
@@ -112,13 +112,13 @@ static NSString * const kAppleCatalog = @"https://raw.githubusercontent.com/SerS
     NSString *rel = item[@"url"];
     NSString *urlString = [kCatalogBase stringByAppendingString:rel];
     NSString *name = item[@"name"] ?: rel.lastPathComponent;
-    BQBusyView *busy = [BQBusyView showInView:self.view text:[NSString stringWithFormat:@"Downloading %@...", name]];
+    BQBusyView *busy = [BQBusyView showInView:self.view text:[NSString stringWithFormat:NSLocalizedString(@"Downloading %@...", nil), name]];
     NSURL *u = [NSURL URLWithString:urlString];
     [[NSURLSession.sharedSession dataTaskWithURL:u completionHandler:^(NSData *data, NSURLResponse *resp, NSError *error) {
         dispatch_async(dispatch_get_main_queue(), ^{
             [busy hide];
             if (!data.length) {
-                BQAlert(self, @"Download failed", error.localizedDescription ?: @"empty response");
+                BQAlert(self, NSLocalizedString(@"Download failed", nil), error.localizedDescription ?: @"empty response");
                 return;
             }
             NSString *dir = [BQDocuments() stringByAppendingPathComponent:@"tendies"];
@@ -130,33 +130,33 @@ static NSString * const kAppleCatalog = @"https://raw.githubusercontent.com/SerS
             }
             NSError *e = nil;
             if (![data writeToURL:[NSURL fileURLWithPath:dest] options:NSDataWritingAtomic error:&e]) {
-                BQAlert(self, @"Save failed", e.localizedDescription ?: @"write error");
+                BQAlert(self, NSLocalizedString(@"Save failed", nil), e.localizedDescription ?: @"write error");
                 return;
             }
             BQLog(@"downloaded %@ (%lu bytes) -> %@", name, (unsigned long)data.length, leaf);
             if (self.onDownload) self.onDownload();
 
-            UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Downloaded"
-                                                                       message:[NSString stringWithFormat:@"%@ saved to Documents/tendies.\nApply now?", name]
+            UIAlertController *a = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Downloaded", nil)
+                                                                       message:[NSString stringWithFormat:NSLocalizedString(@"%@ saved to Documents/tendies.\nApply now?", nil), name]
                                                                 preferredStyle:UIAlertControllerStyleAlert];
-            [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
-            [a addAction:[UIAlertAction actionWithTitle:@"Apply now" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
-                BQBusyView *work = [BQBusyView showInView:self.view text:@"Applying wallpaper..."];
+            [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"OK", nil) style:UIAlertActionStyleCancel handler:nil]];
+            [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Apply now", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
+                BQBusyView *work = [BQBusyView showInView:self.view text:NSLocalizedString(@"Applying wallpaper...", nil)];
                 dispatch_async(BQWorkQueue(), ^{
                     NSString *err = nil;
                     int count = 0;
                     BOOL ok = BQApplyTendies([NSURL fileURLWithPath:dest], &count, &err);
                     dispatch_async(dispatch_get_main_queue(), ^{
                         [work hide];
-                        if (!ok) { BQAlert(self, @"Apply failed", err ?: @"unknown error"); return; }
-                        UIAlertController *b = [UIAlertController alertControllerWithTitle:@"Applied"
-                                                                                   message:[NSString stringWithFormat:@"%d descriptor(s) written. Open PosterBoard and close it from the App Switcher, or respring.", count]
+                        if (!ok) { BQAlert(self, NSLocalizedString(@"Apply failed", nil), err ?: NSLocalizedString(@"unknown error", nil)); return; }
+                        UIAlertController *b = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Applied", nil)
+                                                                                   message:[NSString stringWithFormat:NSLocalizedString(@"%d descriptor(s) written. Open PosterBoard and close it from the App Switcher, or respring.", nil), count]
                                                                             preferredStyle:UIAlertControllerStyleAlert];
-                        [b addAction:[UIAlertAction actionWithTitle:@"Open PosterBoard" style:UIAlertActionStyleDefault handler:^(UIAlertAction *y) {
-                            if (!BQOpenPosterBoard()) BQAlert(self, @"Open failed", @"Could not open PosterBoard.");
+                        [b addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Open PosterBoard", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *y) {
+                            if (!BQOpenPosterBoard()) BQAlert(self, NSLocalizedString(@"Open failed", nil), NSLocalizedString(@"Could not open PosterBoard.", nil));
                         }]];
-                        [b addAction:[UIAlertAction actionWithTitle:@"Respring" style:UIAlertActionStyleDefault handler:^(UIAlertAction *y) { BQRespring(); }]];
-                        [b addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+                        [b addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Respring", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *y) { BQRespring(); }]];
+                        [b addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"OK", nil) style:UIAlertActionStyleCancel handler:nil]];
                         [self presentViewController:b animated:YES completion:nil];
                     });
                 });
@@ -186,7 +186,7 @@ static NSString * const kAppleCatalog = @"https://raw.githubusercontent.com/SerS
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    return @"Catalog: SerStars/Nugget-Wallpapers. Downloads are saved to Documents/tendies.";
+    return NSLocalizedString(@"Catalog: SerStars/Nugget-Wallpapers. Downloads are saved to Documents/tendies.", nil);
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {

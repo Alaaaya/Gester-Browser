@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 SDK="${SDK:-/opt/theos/sdks/iPhoneOS14.5.sdk}"
 APP_NAME="BQTool"
-VERSION="2.3.1"
+VERSION="2.4.0"
 BID="${BID:-com.kamui.escape}"
 BUILD="$ROOT/build"
 APP="$BUILD/Payload/$APP_NAME.app"
@@ -43,6 +43,9 @@ clang \
 
 cp "$ROOT/src/Info.plist" "$APP/Info.plist"
 cp "$ROOT/src/respring.html" "$APP/respring.html"
+for lproj in "$ROOT"/src/*.lproj; do
+    [ -d "$lproj" ] && cp -R "$lproj" "$APP/"
+done
 
 echo "[*] packing..."
 (cd "$BUILD" && zip -qry "KAMUI-$VERSION.ipa" Payload)

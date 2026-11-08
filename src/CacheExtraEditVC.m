@@ -61,9 +61,9 @@ typedef NS_ENUM(NSInteger, CEType) {
         case CETypeBoolean: return ([v isKindOfClass:[NSNumber class]] && [v boolValue]) ? @"true" : @"false";
         case CETypeData: return [v isKindOfClass:[NSData class]] ? [v base64EncodedStringWithOptions:0] : @"";
         case CETypeCollection: {
-            if ([v isKindOfClass:[NSArray class]]) return [NSString stringWithFormat:@"Array (%lu items)", (unsigned long)[v count]];
-            if ([v isKindOfClass:[NSDictionary class]]) return [NSString stringWithFormat:@"Dictionary (%lu keys)", (unsigned long)[v count]];
-            return @"Collection";
+            if ([v isKindOfClass:[NSArray class]]) return [NSString stringWithFormat:NSLocalizedString(@"Array (%lu items)", nil), (unsigned long)[v count]];
+            if ([v isKindOfClass:[NSDictionary class]]) return [NSString stringWithFormat:NSLocalizedString(@"Dictionary (%lu keys)", nil), (unsigned long)[v count]];
+            return NSLocalizedString(@"Collection", nil);
         }
     }
     return @"";
@@ -71,7 +71,7 @@ typedef NS_ENUM(NSInteger, CEType) {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = self.isNew ? @"Add Field" : @"Edit Field";
+    self.title = self.isNew ? NSLocalizedString(@"Add Field", nil) : NSLocalizedString(@"Edit Field", nil);
     self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeOnDrag;
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel
                                                                                           target:self
@@ -82,7 +82,7 @@ typedef NS_ENUM(NSInteger, CEType) {
 
     self.keyField = [[UITextField alloc] init];
     self.keyField.text = self.key;
-    self.keyField.placeholder = @"CacheExtra key";
+    self.keyField.placeholder = NSLocalizedString(@"CacheExtra key", nil);
     self.keyField.font = [UIFont monospacedSystemFontOfSize:13 weight:UIFontWeightRegular];
     self.keyField.autocorrectionType = UITextAutocorrectionTypeNo;
     self.keyField.autocapitalizationType = UITextAutocapitalizationTypeNone;
@@ -99,7 +99,7 @@ typedef NS_ENUM(NSInteger, CEType) {
     self.valueField.clearButtonMode = UITextFieldViewModeWhileEditing;
     [self.valueField addTarget:self action:@selector(valueChanged) forControlEvents:UIControlEventEditingChanged];
 
-    self.typeControl = [[UISegmentedControl alloc] initWithItems:@[@"String", @"Integer", @"Boolean", @"Data"]];
+    self.typeControl = [[UISegmentedControl alloc] initWithItems:@[NSLocalizedString(@"String", nil), NSLocalizedString(@"Integer", nil), NSLocalizedString(@"Boolean", nil), NSLocalizedString(@"Data", nil)]];
     self.typeControl.selectedSegmentIndex = self.type == CETypeCollection ? UISegmentedControlNoSegment : self.type;
     self.typeControl.enabled = self.type != CETypeCollection;
     [self.typeControl addTarget:self action:@selector(typeChanged) forControlEvents:UIControlEventValueChanged];
@@ -124,19 +124,19 @@ typedef NS_ENUM(NSInteger, CEType) {
     self.valueField.enabled = YES;
     switch (self.type) {
         case CETypeString:
-            self.valueField.placeholder = @"String value";
+            self.valueField.placeholder = NSLocalizedString(@"String value", nil);
             self.valueField.keyboardType = UIKeyboardTypeDefault;
             break;
         case CETypeInteger:
-            self.valueField.placeholder = @"123 / -1";
+            self.valueField.placeholder = NSLocalizedString(@"123 / -1", nil);
             self.valueField.keyboardType = UIKeyboardTypeNumbersAndPunctuation;
             break;
         case CETypeBoolean:
-            self.valueField.placeholder = @"true / false";
+            self.valueField.placeholder = NSLocalizedString(@"true / false", nil);
             self.valueField.keyboardType = UIKeyboardTypeDefault;
             break;
         case CETypeData:
-            self.valueField.placeholder = @"Base64 data";
+            self.valueField.placeholder = NSLocalizedString(@"Base64 data", nil);
             self.valueField.keyboardType = UIKeyboardTypeDefault;
             break;
         default:
@@ -152,11 +152,11 @@ typedef NS_ENUM(NSInteger, CEType) {
     NSString *key = self.isNew ? [self.keyField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]
                                : self.key;
     if (!key.length) {
-        BQAlert(self, @"Invalid key", @"Key must not be empty.");
+        BQAlert(self, NSLocalizedString(@"Invalid key", nil), NSLocalizedString(@"Key must not be empty.", nil));
         return;
     }
     if (self.type == CETypeCollection) {
-        BQAlert(self, @"Not editable", @"Collections cannot be edited here. Use the swipe-to-delete action or a plist tool.");
+        BQAlert(self, NSLocalizedString(@"Not editable", nil), NSLocalizedString(@"Collections cannot be edited here. Use the swipe-to-delete action or a plist tool.", nil));
         return;
     }
     NSString *text = self.valueField.text ?: @"";
@@ -169,7 +169,7 @@ typedef NS_ENUM(NSInteger, CEType) {
         errno = 0;
         long long v = strtoll(t.UTF8String, &end, 0);
         if (errno != 0 || !end || *end != '\0' || t.length == 0) {
-            BQAlert(self, @"Invalid integer", @"Enter a valid integer.");
+            BQAlert(self, NSLocalizedString(@"Invalid integer", nil), NSLocalizedString(@"Enter a valid integer.", nil));
             return;
         }
         value = @(v);
@@ -178,14 +178,14 @@ typedef NS_ENUM(NSInteger, CEType) {
         if ([t isEqualToString:@"true"] || [t isEqualToString:@"1"] || [t isEqualToString:@"yes"]) value = @YES;
         else if ([t isEqualToString:@"false"] || [t isEqualToString:@"0"] || [t isEqualToString:@"no"]) value = @NO;
         else {
-            BQAlert(self, @"Invalid boolean", @"Enter true/false, 1/0 or yes/no.");
+            BQAlert(self, NSLocalizedString(@"Invalid boolean", nil), NSLocalizedString(@"Enter true/false, 1/0 or yes/no.", nil));
             return;
         }
     } else if (self.type == CETypeData) {
         NSString *t = [text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
         NSData *d = [[NSData alloc] initWithBase64EncodedString:t options:0];
         if (!d) {
-            BQAlert(self, @"Invalid base64", @"Enter valid base64 data.");
+            BQAlert(self, NSLocalizedString(@"Invalid base64", nil), NSLocalizedString(@"Enter valid base64 data.", nil));
             return;
         }
         value = d;
@@ -197,7 +197,7 @@ typedef NS_ENUM(NSInteger, CEType) {
 - (void)deleteKey {
     NSString *key = self.key;
     if (!key.length || !self.onDelete) return;
-    BQConfirm(self, @"Delete key?", [NSString stringWithFormat:@"Remove %@ from CacheExtra. Apply to persist.", key], ^{
+    BQConfirm(self, NSLocalizedString(@"Delete key?", nil), [NSString stringWithFormat:NSLocalizedString(@"Remove %@ from CacheExtra. Apply to persist.", nil), key], ^{
         self.onDelete(key);
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.navigationController popViewControllerAnimated:YES];
@@ -218,8 +218,8 @@ typedef NS_ENUM(NSInteger, CEType) {
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    if (section == 0) return @"Key";
-    if (section == 1) return @"Value";
+    if (section == 0) return NSLocalizedString(@"Key", nil);
+    if (section == 1) return NSLocalizedString(@"Value", nil);
     return nil;
 }
 
@@ -232,7 +232,7 @@ typedef NS_ENUM(NSInteger, CEType) {
     }
     if (indexPath.section == 1) {
         if (indexPath.row == 0) {
-            cell.textLabel.text = @"Type";
+            cell.textLabel.text = NSLocalizedString(@"Type", nil);
             self.typeControl.frame = CGRectMake(0, 0, 260, 32);
             cell.accessoryView = self.typeControl;
         } else {
@@ -240,7 +240,7 @@ typedef NS_ENUM(NSInteger, CEType) {
         }
         return cell;
     }
-    cell.textLabel.text = @"Delete Key";
+    cell.textLabel.text = NSLocalizedString(@"Delete Key", nil);
     cell.textLabel.textAlignment = NSTextAlignmentCenter;
     cell.textLabel.textColor = [UIColor systemRedColor];
     cell.selectionStyle = UITableViewCellSelectionStyleDefault;

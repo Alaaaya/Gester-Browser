@@ -1,4 +1,4 @@
-# KAMUI 2.3.1 — iOS 27.0.1–27.2 sandbox escape + MobileGestalt editor
+# KAMUI 2.4.0 — iOS 27.0.1–27.2 sandbox escape + MobileGestalt editor
 
 **Open source, MIT licensed and free for everyone.** There is no tester list,
 private group or allowlist. Anyone can use, modify and redistribute KAMUI and
@@ -6,42 +6,36 @@ the MobileGestalt editor.
 
 ## Assets
 
-- `KAMUI-2.3.1.ipa` — the app. Install it on any supported device.
+- `KAMUI-2.4.0.ipa` — the app. Install it on any supported device.
 - Source code and build instructions are in the repository.
 
-## 2.3.1 crash-guard hotfix
+## What's new in 2.4.0
 
-2.2 ran the class-2 parent fallback automatically. On builds that terminate
-the app when its own `Library` is moved, that looked like a launch crash. In
-2.3.1 the fallback is **off by default** and available in
-**Settings → Class-2 fallback (experimental)**. With it off, the app launches
-normally on every build; with it on, the log records `class2-parent` and the
-result.
-
-If KAMUI closes when you enable the switch, relaunch — a crash guard will
-disable the fallback automatically after an unfinished attempt. Then send
-`Documents/bqtool.log`. Do not enable it if you already have an app group.
-
-## What's new since 2.1
-
-- **Dynamic Island controls**: enable/disable, model/position picker for
-  iPhone 14/15/16/17/18 (experimental) and a custom subtype field.
-- **Version spoof**: writes ProductVersion and BuildVersion into MobileGestalt.
-- **Apple Intelligence / Siri AI**: capability key, US region, and AI device
-  spoof (iPhone 15 Pro / 15 Pro Max / 16 Pro / 16 Pro Max).
-- **iPadOS mode**: five Medusa keys plus the binary CacheData patch.
-- **Security Research Device (ResearchFuse)** and **Store Demo Mode** toggles.
-- **Test-device banner**: “This iPhone is provided specifically for testing”
-  with an editable “Managed by group:” label in Settings.
-- **Class-2 fallback** (opt-in) for devices without an app group.
+- **Languages**: English, Russian, Korean, Arabic, Turkish, Ukrainian and
+  Vietnamese. Settings → Language switches the app language and offers System
+  default. Arabic uses RTL layout.
+- **`.tendies` fix**: descriptors are written to both
+  `com.apple.WallpaperKit.CollectionsPoster` and
+  `com.apple.Posters.CollectionsPosterApp`, and the PosterBoard refresh marker
+  (`com.apple.PosterBoard.unprotectedUserDefaults.plist`) is written. This
+  targets the gray-poster/dummy-wallpaper problem. Container-format packs keep
+  their original descriptor UUIDs.
+- **Class-2 subpath probe**: creates a temporary symlink inside the app’s own
+  `Library/Caches` and asks MCM for part 3 with a `partDomain`. It is safe and
+  needs no app group. Successful tokens are verified by opening the target.
+- **All app groups**: class 7 tries every app group in the running build, not
+  just the first one.
+- The opt-in class-2 parent fallback and its crash guard remain from 2.3.1.
+- The “MCM query returned no sandbox token” error is localized and points to
+  `Documents/bqtool.log`.
 
 ## Runtime requirement
 
 The primary 27.2 class-7 strategy needs at least one
 `com.apple.security.application-groups` entitlement in the running app. If
-there is none, enable the class-2 fallback in Settings and retry. If the
-sandbox denies moving `Library`, the log says so and an app group is still
-required for the class-7 path.
+there is none, KAMUI tries the safe class-2 subpath probe. The class-2 parent
+fallback is opt-in in Settings because some builds terminate the app when
+`Library` is moved.
 
 ## Tested
 

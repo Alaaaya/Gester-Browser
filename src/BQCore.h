@@ -10,6 +10,7 @@ NSString *BQLogPath(void);
 NSString *BQDocuments(void);
 NSString *BQGroupRoot(void);
 NSString *BQGroupID(void);
+NSArray<NSString *> *BQGroupIDs(void);
 NSDictionary *BQProbeEscapeClasses(NSString *target);
 NSDictionary *BQProbeClass2Parts(NSString *target);
 dispatch_queue_t BQWorkQueue(void);

@@ -10,7 +10,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"Log";
+    self.title = NSLocalizedString(@"Log", nil);
     self.edgesForExtendedLayout = UIRectEdgeNone;
     self.view.backgroundColor = [UIColor systemBackgroundColor];
     self.textView = [[UITextView alloc] initWithFrame:self.view.bounds];
@@ -25,7 +25,7 @@
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemRefresh
                                                                                            target:self
                                                                                            action:@selector(loadLog)];
-    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Clear"
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"Clear", nil)
                                                                              style:UIBarButtonItemStylePlain
                                                                             target:self
                                                                             action:@selector(clearLog)];
@@ -38,7 +38,7 @@
 }
 
 - (void)loadLog {
-    NSString *text = [NSString stringWithContentsOfFile:BQLogPath() encoding:NSUTF8StringEncoding error:nil] ?: @"(empty log)";
+    NSString *text = [NSString stringWithContentsOfFile:BQLogPath() encoding:NSUTF8StringEncoding error:nil] ?: NSLocalizedString(@"(empty log)", nil);
     self.textView.text = text;
     if (text.length) {
         NSRange r = NSMakeRange(text.length - 1, 1);
@@ -47,7 +47,7 @@
 }
 
 - (void)clearLog {
-    BQConfirm(self, @"Clear log?", @"Truncate bqtool.log.", ^{
+    BQConfirm(self, NSLocalizedString(@"Clear log?", nil), NSLocalizedString(@"Truncate bqtool.log.", nil), ^{
         [[NSFileManager defaultManager] createFileAtPath:BQLogPath() contents:nil attributes:nil];
         [self loadLog];
     });

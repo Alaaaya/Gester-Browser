@@ -29,7 +29,7 @@ void BQAlert(UIViewController *vc, NSString *title, NSString *message) {
         UIAlertController *a = [UIAlertController alertControllerWithTitle:title
                                                                    message:message
                                                             preferredStyle:UIAlertControllerStyleAlert];
-        [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"OK", nil) style:UIAlertActionStyleDefault handler:nil]];
         [top presentViewController:a animated:YES completion:nil];
     });
 }
@@ -41,8 +41,8 @@ void BQConfirm(UIViewController *vc, NSString *title, NSString *message, void (^
         UIAlertController *a = [UIAlertController alertControllerWithTitle:title
                                                                    message:message
                                                             preferredStyle:UIAlertControllerStyleAlert];
-        [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-        [a addAction:[UIAlertAction actionWithTitle:@"Continue" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x) {
+        [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
+        [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Continue", nil) style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x) {
             if (action) action();
         }]];
         [top presentViewController:a animated:YES completion:nil];
@@ -63,7 +63,7 @@ void BQConfirm(UIViewController *vc, NSString *title, NSString *message, void (^
     v->_spinner.translatesAutoresizingMaskIntoConstraints = NO;
     [v->_spinner startAnimating];
     v->_label = [[UILabel alloc] initWithFrame:CGRectZero];
-    v->_label.text = text ?: @"Working...";
+    v->_label.text = text ?: NSLocalizedString(@"Working...", nil);
     v->_label.textColor = [UIColor whiteColor];
     v->_label.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
     v->_label.textAlignment = NSTextAlignmentCenter;
