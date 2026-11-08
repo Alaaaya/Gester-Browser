@@ -97,22 +97,40 @@ NSString *BQGroupID(void) {
             CFTypeRef task = create(kCFAllocatorDefault);
             if (task) {
                 CFTypeRef val = copy(task, CFSTR("com.apple.security.application-groups"), NULL);
-                if (val && CFGetTypeID(val) == CFArrayGetTypeID()) {
-                    CFArrayRef arr = (CFArrayRef)val;
-                    NSMutableArray *all = [NSMutableArray array];
-                    for (CFIndex i = 0; i < CFArrayGetCount(arr); i++) {
-                        CFTypeRef x = CFArrayGetValueAtIndex(arr, i);
-                        if (x && CFGetTypeID(x) == CFStringGetTypeID()) {
-                            [all addObject:[(__bridge NSString *)x copy]];
+                if (val) {
+                    if (CFGetTypeID(val) == CFArrayGetTypeID()) {
+                        CFArrayRef arr = (CFArrayRef)val;
+                        NSMutableArray *all = [NSMutableArray array];
+                        for (CFIndex i = 0; i < CFArrayGetCount(arr); i++) {
+                            CFTypeRef x = CFArrayGetValueAtIndex(arr, i);
+                            if (x && CFGetTypeID(x) == CFStringGetTypeID()) {
+                                [all addObject:[(__bridge NSString *)x copy]];
+                            }
+                        }
+                        if (all.count) {
+                            gGroupIDs = [all copy];
+                            gGroupID = all.firstObject;
+                        }
+                    } else if (CFGetTypeID(val) == CFStringGetTypeID()) {
+                        NSString *s = [(__bridge NSString *)val copy];
+                        if (s.length) {
+                            gGroupIDs = @[s];
+                            gGroupID = s;
                         }
                     }
-                    if (all.count) {
-                        gGroupIDs = [all copy];
-                        gGroupID = all.firstObject;
-                    }
+                    CFRelease(val);
                 }
-                if (val) CFRelease(val);
                 CFRelease(task);
+            }
+        }
+        if (!gGroupID) {
+            NSString *defaultGroup = [NSString stringWithFormat:@"group.%@", [[NSBundle mainBundle] bundleIdentifier]];
+            if ([[NSFileManager defaultManager] containerURLForSecurityApplicationGroupIdentifier:defaultGroup]) {
+                gGroupID = defaultGroup;
+                gGroupIDs = @[defaultGroup];
+            } else if ([[NSFileManager defaultManager] containerURLForSecurityApplicationGroupIdentifier:@"group.com.kamui.escape"]) {
+                gGroupID = @"group.com.kamui.escape";
+                gGroupIDs = @[@"group.com.kamui.escape"];
             }
         }
         BQLog(@"app group entitlement: %@", gGroupID ?: @"(none)");
@@ -145,7 +163,11 @@ dispatch_queue_t BQWorkQueue(void) {
 }
 
 // --------------------------------------------------------------- MCM API ---
+#if __has_include(<xpc/xpc.h>)
+#import <xpc/xpc.h>
+#else
 typedef void *xpc_object_t;
+#endif
 typedef xpc_object_t (*xpc_string_create_fn)(const char *);
 typedef void (*xpc_release_fn)(xpc_object_t);
 typedef void *(*fn_create)(void);

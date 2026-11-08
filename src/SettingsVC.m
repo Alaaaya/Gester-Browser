@@ -21,7 +21,7 @@
     self.mgStatus = NSLocalizedString(@"not checked", nil);
     self.pbStatus = NSLocalizedString(@"not checked", nil);
     self.managedGroup = [[NSUserDefaults standardUserDefaults] stringForKey:@"BQManagedGroupName"];
-    if (!self.managedGroup.length) self.managedGroup = @"KAMUI Test Group";
+    if (!self.managedGroup.length) self.managedGroup = @"Gester Test Group";
 }
 
 - (BOOL)bannerEnabled {
@@ -41,7 +41,7 @@
     label.textAlignment = NSTextAlignmentCenter;
     label.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
     label.textColor = [UIColor secondaryLabelColor];
-    label.text = [NSString stringWithFormat:NSLocalizedString(@"This iPhone is provided specifically for testing.\nManaged by group: %@", nil), self.managedGroup ?: @"KAMUI Test Group"];
+    label.text = [NSString stringWithFormat:NSLocalizedString(@"This iPhone is provided specifically for testing.\nManaged by group: %@", nil), self.managedGroup ?: @"Gester Test Group"];
     [header addSubview:label];
     self.tableView.tableHeaderView = header;
 }
@@ -89,7 +89,7 @@
             }
             [defs synchronize];
             UIAlertController *r = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Language", nil)
-                                                                       message:NSLocalizedString(@"Restart KAMUI to apply the language.", nil)
+                                                                       message:NSLocalizedString(@"Restart Gester to apply the language.", nil)
                                                                 preferredStyle:UIAlertControllerStyleAlert];
             [r addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"OK", nil) style:UIAlertActionStyleDefault handler:nil]];
             [self presentViewController:r animated:YES completion:nil];
@@ -106,8 +106,8 @@
     BQSetClass2ParentEnabled(sw.isOn);
     if (sw.isOn) {
         BQAlert(self, NSLocalizedString(@"Class-2 fallback enabled", nil),
-                @"KAMUI will try to move its own Library on the next Gestalt/PosterBoard operation. "
-                @"Some builds kill the app for this; if KAMUI closes, relaunch and disable this switch. "
+                @"Gester will try to move its own Library on the next Gestalt/PosterBoard operation. "
+                @"Some builds kill the app for this; if Gester closes, relaunch and disable this switch. "
                 @"Send Documents/bqtool.log to the developer.");
     }
 }
@@ -123,7 +123,7 @@
     [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
     [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Save", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
         NSString *name = [a.textFields.firstObject.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-        self.managedGroup = name.length ? name : @"KAMUI Test Group";
+        self.managedGroup = name.length ? name : @"Gester Test Group";
         [[NSUserDefaults standardUserDefaults] setObject:self.managedGroup forKey:@"BQManagedGroupName"];
         [[NSUserDefaults standardUserDefaults] synchronize];
         [self updateBanner];
@@ -200,8 +200,8 @@
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (section == 1) return NSLocalizedString(@"In-place write keeps the same inode and is more likely to persist after reboot. Disable to use atomic replace.", nil);
-    if (section == 3) return NSLocalizedString(@"The banner is shown inside KAMUI only. Changing the system Settings banner requires MDM/supervision enrollment. The class-2 fallback is off by default because moving Library can make the sandbox terminate the app.", nil);
-    if (section == 4) return NSLocalizedString(@"KAMUI is MIT licensed and free for everyone. No allowlist, no tester group. Use only on devices you own or have permission to modify. UI inspired by mond. NeoSpring by neonmodder123/skadz108.", nil);
+    if (section == 3) return NSLocalizedString(@"The banner is shown inside Gester only. Changing the system Settings banner requires MDM/supervision enrollment. The class-2 fallback is off by default because moving Library can make the sandbox terminate the app.", nil);
+    if (section == 4) return NSLocalizedString(@"Gester is MIT licensed and free for everyone. No allowlist, no tester group. Use only on devices you own or have permission to modify. UI inspired by mond. NeoSpring by neonmodder123/skadz108.", nil);
     return nil;
 }
 

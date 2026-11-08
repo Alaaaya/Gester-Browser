@@ -1,0 +1,35 @@
+name: Gester
+options:
+  bundleIdPrefix: com.kamui
+  deploymentTarget:
+    iOS: "15.0"
+settings:
+  base:
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_BITCODE: NO
+    CLANG_ENABLE_OBJC_ARC: YES
+targets:
+  Gester:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: src
+        excludes:
+          - "entitlements.plist"
+    settings:
+      base:
+        PRODUCT_NAME: BQTool
+        PRODUCT_BUNDLE_IDENTIFIER: com.kamui.escape
+        INFOPLIST_FILE: src/Info.plist
+        CODE_SIGN_ENTITLEMENTS: src/entitlements.plist
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ZX32KR6KKW
+        OTHER_LDFLAGS:
+          - -lz
+          - -framework UIKit
+          - -framework Foundation
+          - -framework CoreFoundation
+          - -framework CoreGraphics
+          - -framework WebKit

@@ -2,24 +2,37 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-SDK="${SDK:-/opt/theos/sdks/iPhoneOS14.5.sdk}"
 APP_NAME="BQTool"
 VERSION="2.4.1"
 BID="${BID:-com.kamui.escape}"
 BUILD="$ROOT/build"
 APP="$BUILD/Payload/$APP_NAME.app"
 
-echo "[*] SDK: $SDK"
-[ -d "$SDK" ] || { echo "[!] SDK missing"; exit 1; }
+# SDK discovery: check explicit $SDK, theos fallback, then xcrun iphoneos SDK
+if [ -z "${SDK:-}" ] || [ ! -d "$SDK" ]; then
+    if [ -d "/opt/theos/sdks/iPhoneOS14.5.sdk" ]; then
+        SDK="/opt/theos/sdks/iPhoneOS14.5.sdk"
+    elif command -v xcrun >/dev/null 2>&1; then
+        SDK="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+    fi
+fi
+
+echo "[*] SDK: ${SDK:-none}"
+[ -n "${SDK:-}" ] && [ -d "$SDK" ] || { echo "[!] SDK missing. Install Xcode or set SDK=/path/to/iPhoneOS.sdk"; exit 1; }
 
 rm -rf "$BUILD"
 mkdir -p "$APP"
+
+EXTRA_LDFLAGS=""
+if [ -n "${USE_LLD:-}" ]; then
+    EXTRA_LDFLAGS="-fuse-ld=lld"
+fi
 
 echo "[*] compiling..."
 clang \
     -target arm64-apple-ios14.0 \
     -isysroot "$SDK" \
-    -fuse-ld=lld \
+    -I"$ROOT/src" \
     -fobjc-arc -fblocks -O2 \
     -Wall -Wno-unused-parameter -Wno-deprecated-declarations \
     -framework UIKit \
@@ -28,8 +41,10 @@ clang \
     -framework CoreGraphics \
     -framework WebKit \
     -L"$SDK/usr/lib" -lz \
+    ${EXTRA_LDFLAGS} \
     "$ROOT/src/main.m" \
     "$ROOT/src/AppDelegate.m" \
+    "$ROOT/src/SceneDelegate.m" \
     "$ROOT/src/RootTabBarController.m" \
     "$ROOT/src/GestaltVC.m" \
     "$ROOT/src/CacheExtraEditVC.m" \
@@ -47,6 +62,18 @@ for lproj in "$ROOT"/src/*.lproj; do
     [ -d "$lproj" ] && cp -R "$lproj" "$APP/"
 done
 
+echo "[*] signing..."
+ENTITLEMENTS="$ROOT/src/entitlements.plist"
+if command -v ldid >/dev/null 2>&1; then
+    echo "[*] applying ldid signature with entitlements..."
+    ldid -S"$ENTITLEMENTS" "$APP/$APP_NAME"
+fi
+if command -v codesign >/dev/null 2>&1; then
+    SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+    echo "[*] applying codesign ($SIGN_IDENTITY)..."
+    codesign -f -s "$SIGN_IDENTITY" --entitlements "$ENTITLEMENTS" "$APP"
+fi
+
 echo "[*] packing..."
-(cd "$BUILD" && zip -qry "KAMUI-$VERSION.ipa" Payload)
-echo "[*] done: $BUILD/KAMUI-$VERSION.ipa"
+(cd "$BUILD" && zip -qry "Gester-$VERSION.ipa" Payload)
+echo "[*] done: $BUILD/Gester-$VERSION.ipa"

@@ -55,7 +55,11 @@ void BQConfirm(UIViewController *vc, NSString *title, NSString *message, void (^
 }
 
 + (instancetype)showInView:(UIView *)view text:(NSString *)text {
-    BQBusyView *v = [[BQBusyView alloc] initWithFrame:view.bounds];
+    CGRect frame = view.bounds;
+    if (CGRectIsEmpty(frame)) {
+        frame = [UIScreen mainScreen].bounds;
+    }
+    BQBusyView *v = [[BQBusyView alloc] initWithFrame:frame];
     v.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     v.backgroundColor = [UIColor colorWithWhite:0 alpha:0.62];
     v->_spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleLarge];
@@ -71,12 +75,15 @@ void BQConfirm(UIViewController *vc, NSString *title, NSString *message, void (^
     v->_label.translatesAutoresizingMaskIntoConstraints = NO;
     [v addSubview:v->_spinner];
     [v addSubview:v->_label];
+    NSLayoutConstraint *leading = [v->_label.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:24];
+    NSLayoutConstraint *trailing = [v->_label.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-24];
+    trailing.priority = UILayoutPriorityDefaultHigh;
     [NSLayoutConstraint activateConstraints:@[
         [v->_spinner.centerXAnchor constraintEqualToAnchor:v.centerXAnchor],
         [v->_spinner.centerYAnchor constraintEqualToAnchor:v.centerYAnchor constant:-20],
         [v->_label.topAnchor constraintEqualToAnchor:v->_spinner.bottomAnchor constant:12],
-        [v->_label.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:24],
-        [v->_label.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-24],
+        leading,
+        trailing,
     ]];
     dispatch_async(dispatch_get_main_queue(), ^{ [view addSubview:v]; });
     return v;
