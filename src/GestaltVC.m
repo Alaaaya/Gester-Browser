@@ -143,6 +143,8 @@ static NSString *BQValueSummary(id v) {
 @property (nonatomic, copy) NSString *originalHardware;
 @property (nonatomic, copy) NSString *originalCPU;
 @property (nonatomic, copy) NSString *originalRegulatory;
+@property (nonatomic, copy) NSString *originalSiriRegion;
+@property (nonatomic, copy) NSString *originalSiriRegionCode;
 @property (nonatomic, assign) BOOL loading;
 @end
 
@@ -224,6 +226,8 @@ static NSString *BQValueSummary(id v) {
             self.originalHardware = bakCE[kHardwareKey] ?: ce[kHardwareKey];
             self.originalCPU = bakCE[kCPUKey] ?: ce[kCPUKey];
             self.originalRegulatory = bakCE[kRegulatoryKey] ?: ce[kRegulatoryKey];
+            self.originalSiriRegion = bakCE[kSiriRegionKey] ?: ce[kSiriRegionKey];
+            self.originalSiriRegionCode = bakCE[kSiriRegionCodeKey] ?: ce[kSiriRegionCodeKey];
             [self.tableView reloadData];
         });
     });
@@ -534,8 +538,10 @@ static NSString *BQValueSummary(id v) {
                 self.cacheExtra[kSiriRegionKey] = @"LL";
                 self.cacheExtra[kSiriRegionCodeKey] = @"LL/A";
             } else {
-                [self.cacheExtra removeObjectForKey:kSiriRegionKey];
-                [self.cacheExtra removeObjectForKey:kSiriRegionCodeKey];
+                if (self.originalSiriRegion.length) self.cacheExtra[kSiriRegionKey] = self.originalSiriRegion;
+                else [self.cacheExtra removeObjectForKey:kSiriRegionKey];
+                if (self.originalSiriRegionCode.length) self.cacheExtra[kSiriRegionCodeKey] = self.originalSiriRegionCode;
+                else [self.cacheExtra removeObjectForKey:kSiriRegionCodeKey];
             }
             BQLog(@"Siri AI region -> %d", sw.isOn);
         }];
