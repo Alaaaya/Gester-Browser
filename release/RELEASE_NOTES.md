@@ -18,8 +18,9 @@ the app when its own `Library` is moved, that looked like a launch crash. In
 normally on every build; with it on, the log records `class2-parent` and the
 result.
 
-If KAMUI closes when you enable the switch, relaunch, disable the switch and
-send `Documents/bqtool.log`. Do not enable it if you already have an app group.
+If KAMUI closes when you enable the switch, relaunch — a crash guard will
+disable the fallback automatically after an unfinished attempt. Then send
+`Documents/bqtool.log`. Do not enable it if you already have an app group.
 
 ## What's new since 2.1
 

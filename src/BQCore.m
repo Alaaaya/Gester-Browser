@@ -311,7 +311,20 @@ BOOL BQCoreInit(void) {
         [[NSFileManager defaultManager] createDirectoryAtPath:[docs stringByAppendingPathComponent:@"PosterBoard/Wallpapers"]
                                   withIntermediateDirectories:YES attributes:nil error:nil];
         if (gLogPath) [[NSFileManager defaultManager] createFileAtPath:gLogPath contents:nil attributes:nil];
-        gClass2ParentEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"BQClass2ParentEnabled"];
+        NSUserDefaults *defs = [NSUserDefaults standardUserDefaults];
+        gClass2ParentEnabled = [defs boolForKey:@"BQClass2ParentEnabled"];
+        if (gClass2ParentEnabled && [defs boolForKey:@"BQClass2ParentCrashGuard"]) {
+            gClass2ParentEnabled = NO;
+            [defs setBool:NO forKey:@"BQClass2ParentEnabled"];
+            [defs setBool:NO forKey:@"BQClass2ParentCrashGuard"];
+            [defs synchronize];
+            BQLog(@"class2-parent disabled after a previous attempt did not finish");
+        } else if (gClass2ParentEnabled) {
+            [defs setBool:YES forKey:@"BQClass2ParentCrashGuard"];
+            [defs synchronize];
+        } else {
+            [defs setBool:NO forKey:@"BQClass2ParentCrashGuard"];
+        }
         BQLog(@"=== BQEscape start | iOS %@ | bundle %@ ===",
               [UIDevice currentDevice].systemVersion, [[NSBundle mainBundle] bundleIdentifier]);
         bq_load_mcm();
@@ -502,6 +515,8 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
     if (gClass2ParentEnabled) {
         NSString *link = nil;
         int64_t h = bq_escape_class2_parent(target, &link);
+        [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"BQClass2ParentCrashGuard"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
         if (h >= 0) {
             if (linkOut) *linkOut = link ?: target;
             BQLog(@"escape: using class2 parent");
