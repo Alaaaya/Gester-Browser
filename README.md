@@ -21,12 +21,13 @@ target `BQTool`) and the release IPA.
 the repository, build the app, install the IPA, fork it, publish your own
 build — the MIT license allows all of it.
 
-The MobileGestalt editor itself has no access check and no allowlist. The only
-technical requirement on **iOS 27.2** is that the running app has at least
-one `com.apple.security.application-groups` entitlement, because the class-7
-escape path uses the app-group container. KAMUI reads that entitlement at
-runtime. On some **27.0.x** builds the legacy class-13 traversal may work even
-without an app group.
+The MobileGestalt editor itself has no access check and no allowlist. On
+**iOS 27.2** the primary class-7 path needs at least one
+`com.apple.security.application-groups` entitlement in the running app. KAMUI
+2.2 also tries the **class-2 parent fallback**, which renames the app's own
+`Library` and may work without an app group. If both paths fail, the log shows
+exactly which step the sandbox denied. On some **27.0.x** builds the legacy
+class-13 traversal may work without an app group.
 
 ---
 
