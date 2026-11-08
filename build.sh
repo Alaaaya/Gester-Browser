@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 SDK="${SDK:-/opt/theos/sdks/iPhoneOS14.5.sdk}"
 APP_NAME="BQTool"
-VERSION="2.1"
+VERSION="2.2"
 BID="${BID:-com.kamui.escape}"
 BUILD="$ROOT/build"
 APP="$BUILD/Payload/$APP_NAME.app"

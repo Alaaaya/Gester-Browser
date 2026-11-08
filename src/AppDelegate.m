@@ -12,13 +12,7 @@
     [self.window makeKeyAndVisible];
 
     if (!BQGroupID().length) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            BQAlert(nil, @"No app group entitlement",
-                    @"This build has no com.apple.security.application-groups entry.\n\n"
-                    @"The app will try the legacy class-13 traversal fallback (works on some 27.0.x builds). "
-                    @"On 27.2 the class-7 path needs at least one app group. "
-                    @"See Documents/bqtool.log for the per-strategy result.");
-        });
+        BQLog(@"no app group; class2-parent fallback will be attempted");
     }
 
     if ([[NSProcessInfo processInfo].arguments containsObject:@"--bqselftest"]) {

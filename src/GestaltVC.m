@@ -5,6 +5,117 @@
 #import <CoreFoundation/CoreFoundation.h>
 
 static NSString * const kArtKey = @"oPeik/9e8lQWMszEjbPzng";
+static NSString * const kIslandKey = @"YlEtTtHlNesRBMal1CqRaA";
+static NSString * const kAIKey = @"A62OafQ85EJAiiqKn4agtg";
+static NSString * const kProductTypeKey = @"h9jDsbgj7xIVeIQ8S3/X3Q";
+static NSString * const kHardwareKey = @"oYicEKzVTz4/CxxE05pEgQ";
+static NSString * const kCPUKey = @"5pYKlGnYYBzGvAlIU8RjEQ";
+static NSString * const kSiriRegionKey = @"h63QSdBCiT/z0WU6rdQv6Q";
+static NSString * const kSiriRegionCodeKey = @"yK+xavymRGZ3xWc1tb8XDg";
+static NSString * const kRegulatoryKey = @"97JDvERpVwO+GHtthIh7hA";
+static NSString * const kResearchKey = @"XYlJKKkj2hztRP1NWWnhlw";
+static NSString * const kStoreDemoKey = @"aadL+4GFBDe6DdsUD2HGGw";
+static NSString * const kVersionKey = @"qNNddlUK+B/YlooNoymwgA";
+static NSString * const kBuildKey = @"mZfUC7qo4pURNhyMHZ62RQ";
+static NSString * const kHumanVersionKey = @"ToLFRidm+eJGWnpw6W4Wwg";
+static NSString * const kVersionExtraKey = @"P5Go9WVVA604m7rKhbVndw";
+
+static NSArray<NSString *> *BQIPadOSKeys(void) {
+    return @[
+        @"mG0AnH/Vy1veoqoLRAIgTA",
+        @"UCG5MkVahJxG1YULbbd5Bg",
+        @"ZYqko/XM5zD3XBfN5RmaXA",
+        @"nVh/gwNpy7Jv1NOk00CMrw",
+        @"uKc7FPnEO++lVhHWHFlGbQ",
+    ];
+}
+
+static NSArray<NSDictionary *> *BQAIModelOptions(void) {
+    return @[
+        @{@"title": @"Original", @"product": @"", @"hw": @"", @"cpu": @"", @"reg": @""},
+        @{@"title": @"iPhone 15 Pro", @"product": @"iPhone16,1", @"hw": @"D83AP", @"cpu": @"t8130", @"reg": @"A2848"},
+        @{@"title": @"iPhone 15 Pro Max", @"product": @"iPhone16,2", @"hw": @"D84AP", @"cpu": @"t8130", @"reg": @"A2849"},
+        @{@"title": @"iPhone 16 Pro", @"product": @"iPhone17,1", @"hw": @"D93AP", @"cpu": @"t8140", @"reg": @"A3083"},
+        @{@"title": @"iPhone 16 Pro Max", @"product": @"iPhone17,2", @"hw": @"D94AP", @"cpu": @"t8140", @"reg": @"A3084"},
+    ];
+}
+
+static NSString *BQTrim(NSString *s) {
+    return [s stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+}
+
+// Port of the Nugget iPadOS CacheData patch. It flips one nibble in the
+// binary CacheData blob after locating the marker at hex offset 1616..1816.
+static NSData *BQPatchIPadOSCacheData(NSData *data, NSString **err) {
+    if (!data.length) {
+        if (err) *err = @"MobileGestalt has no CacheData blob";
+        return nil;
+    }
+    NSMutableString *hex = [NSMutableString stringWithCapacity:data.length * 2];
+    const uint8_t *bytes = data.bytes;
+    for (NSUInteger i = 0; i < data.length; i++) [hex appendFormat:@"%02x", bytes[i]];
+    if (hex.length <= 1616) {
+        if (err) *err = @"CacheData is too short for the iPadOS marker";
+        return nil;
+    }
+
+    NSRange sliceRange = NSMakeRange(1616, MIN((NSUInteger)200, hex.length - 1616));
+    NSString *slice = [hex substringWithRange:sliceRange];
+    NSError *reErr = nil;
+    NSRegularExpression *re = [NSRegularExpression regularExpressionWithPattern:@"0+(?:5555)*([0-9a-f]{4})"
+                                                                       options:0 error:&reErr];
+    if (!re) {
+        if (err) *err = [NSString stringWithFormat:@"CacheData regex: %@", reErr.localizedDescription];
+        return nil;
+    }
+
+    __block NSInteger marker = -1;
+    [re enumerateMatchesInString:slice options:0 range:NSMakeRange(0, slice.length)
+                      usingBlock:^(NSTextCheckingResult *m, NSMatchingFlags flags, BOOL *stop) {
+        NSRange r = [m rangeAtIndex:1];
+        if (r.location == NSNotFound) return;
+        NSString *value = [slice substringWithRange:r];
+        NSUInteger nonzero = 0;
+        for (NSUInteger i = 0; i < value.length; i++) {
+            if ([value characterAtIndex:i] != '0') nonzero++;
+        }
+        if (nonzero >= 3) {
+            marker = (NSInteger)sliceRange.location + (NSInteger)r.location;
+            *stop = YES;
+        }
+    }];
+    if (marker < 0) {
+        if (err) *err = @"iPadOS marker was not found in CacheData";
+        return nil;
+    }
+
+    NSInteger right = marker + 13;
+    NSInteger left = marker - 67;
+    if (left <= 0 || right >= (NSInteger)hex.length - 1) {
+        if (err) *err = @"iPadOS marker offset is out of range";
+        return nil;
+    }
+    for (NSNumber *n in @[@(left), @(right)]) {
+        NSInteger p = n.integerValue;
+        unichar c = [hex characterAtIndex:p];
+        if ((c != '1' && c != '3') ||
+            [hex characterAtIndex:p - 1] != '0' ||
+            [hex characterAtIndex:p + 1] != '0') {
+            if (err) *err = @"iPadOS marker validation failed; no changes made";
+            return nil;
+        }
+    }
+    [hex replaceCharactersInRange:NSMakeRange(left, 1) withString:@"3"];
+
+    NSMutableData *out = [NSMutableData dataWithCapacity:hex.length / 2];
+    for (NSUInteger i = 0; i + 1 < hex.length; i += 2) {
+        unsigned int byte = 0;
+        sscanf([[hex substringWithRange:NSMakeRange(i, 2)] UTF8String], "%02x", &byte);
+        uint8_t b = (uint8_t)byte;
+        [out appendBytes:&b length:1];
+    }
+    return out;
+}
 
 static NSString *BQValueSummary(id v) {
     if (!v) return @"(null)";
@@ -27,6 +138,11 @@ static NSString *BQValueSummary(id v) {
 @property (nonatomic, strong) NSArray<NSString *> *keys;
 @property (nonatomic, strong) NSArray<NSDictionary *> *presets;
 @property (nonatomic, assign) NSInteger originalSubtype;
+@property (nonatomic, strong) NSData *originalCacheData;
+@property (nonatomic, copy) NSString *originalProductType;
+@property (nonatomic, copy) NSString *originalHardware;
+@property (nonatomic, copy) NSString *originalCPU;
+@property (nonatomic, copy) NSString *originalRegulatory;
 @property (nonatomic, assign) BOOL loading;
 @end
 
@@ -59,7 +175,6 @@ static NSString *BQValueSummary(id v) {
     self.refreshControl = rc;
 
     self.presets = @[
-        @{@"title": @"Dynamic Island", @"keys": @[@"YlEtTtHlNesRBMal1CqRaA"], @"value": @YES},
         @{@"title": @"Always-On Display", @"keys": @[@"2OOJf1VhaM7NxfRok3HbWQ", @"j8/Omm6s1lsmTDFsXjsBfA"], @"value": @YES},
         @{@"title": @"AOD Vibrancy", @"keys": @[@"ykpu7qyhqFweVMKtxNylWA"], @"value": @YES},
         @{@"title": @"Boot Chime", @"keys": @[@"QHxt+hGLaBPbQJbXiUJX3w"], @"value": @YES},
@@ -99,10 +214,16 @@ static NSString *BQValueSummary(id v) {
                 ? [mg[@"CacheExtra"] mutableCopy] : [NSMutableDictionary dictionary];
             mg[@"CacheExtra"] = ce;
             self.cacheExtra = ce;
-            self.keys = [ce.allKeys sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+            self.keys = [ce.allKeys sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare)];
             NSDictionary *bak = [NSDictionary dictionaryWithContentsOfFile:BQBackupPath()];
-            NSDictionary *art = bak[@"CacheExtra"][kArtKey];
+            NSDictionary *bakCE = [bak[@"CacheExtra"] isKindOfClass:[NSDictionary class]] ? bak[@"CacheExtra"] : @{};
+            NSDictionary *art = bakCE[kArtKey];
             self.originalSubtype = [art[@"ArtworkDeviceSubType"] integerValue];
+            self.originalCacheData = bak[@"CacheData"] ?: mg[@"CacheData"];
+            self.originalProductType = bakCE[kProductTypeKey] ?: ce[kProductTypeKey];
+            self.originalHardware = bakCE[kHardwareKey] ?: ce[kHardwareKey];
+            self.originalCPU = bakCE[kCPUKey] ?: ce[kCPUKey];
+            self.originalRegulatory = bakCE[kRegulatoryKey] ?: ce[kRegulatoryKey];
             [self.tableView reloadData];
         });
     });
@@ -133,14 +254,26 @@ static NSString *BQValueSummary(id v) {
     BQLog(@"preset %@ -> %d (in memory)", p[@"title"], sw.isOn);
 }
 
+#pragma mark - Dynamic Island
+
+- (BOOL)islandOn {
+    return [self.cacheExtra[kIslandKey] boolValue];
+}
+
+- (NSMutableDictionary *)artwork {
+    id art = self.cacheExtra[kArtKey];
+    return [art isKindOfClass:[NSDictionary class]] ? [art mutableCopy] : [NSMutableDictionary dictionary];
+}
+
 - (NSString *)subtypeNameForValue:(NSInteger)v {
     switch (v) {
-        case 2556: return @"iPhone 14 Pro";
-        case 2796: return @"iPhone 14 Pro Max";
-        case 2976: return @"iPhone 15 Pro Max";
-        case 2622: return @"iPhone 16 Pro";
-        case 2868: return @"iPhone 16 Pro Max";
-        case 2736: return @"iPhone Air";
+        case 2436: return @"iPhone X gestures (2436)";
+        case 2556: return @"iPhone 14 Pro / 15 Pro (2556)";
+        case 2796: return @"iPhone 14 Pro Max (2796)";
+        case 2976: return @"iPhone 15 Pro Max / 17 (2976)";
+        case 2622: return @"iPhone 16 Pro / 17 Pro (2622)";
+        case 2868: return @"iPhone 16 Pro Max / 17 Pro Max (2868)";
+        case 2736: return @"iPhone Air (2736)";
         default: return [NSString stringWithFormat:@"Original (%ld)", (long)v];
     }
 }
@@ -152,38 +285,293 @@ static NSString *BQValueSummary(id v) {
     return [self subtypeNameForValue:v];
 }
 
+- (void)dynamicIslandChanged:(UISwitch *)sw {
+    if (sw.isOn) {
+        self.cacheExtra[kIslandKey] = @YES;
+        NSMutableDictionary *art = [self artwork];
+        if (![art[@"ArtworkDeviceSubType"] isKindOfClass:[NSNumber class]]) {
+            art[@"ArtworkDeviceSubType"] = @2556;
+            self.cacheExtra[kArtKey] = art;
+        }
+    } else {
+        [self.cacheExtra removeObjectForKey:kIslandKey];
+    }
+    BQLog(@"dynamic island -> %d", sw.isOn);
+    [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:2]
+                 withRowAnimation:UITableViewRowAnimationAutomatic];
+}
+
+- (void)resetDynamicIsland {
+    [self.cacheExtra removeObjectForKey:kIslandKey];
+    NSMutableDictionary *art = [self artwork];
+    if (self.originalSubtype > 0) art[@"ArtworkDeviceSubType"] = @(self.originalSubtype);
+    else [art removeObjectForKey:@"ArtworkDeviceSubType"];
+    if (art.count) self.cacheExtra[kArtKey] = art;
+    else [self.cacheExtra removeObjectForKey:kArtKey];
+    [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:2]
+                 withRowAnimation:UITableViewRowAnimationAutomatic];
+}
+
+- (void)setSubtype:(NSInteger)v {
+    NSMutableDictionary *art = [self artwork];
+    if (v <= 0) {
+        [art removeObjectForKey:@"ArtworkDeviceSubType"];
+        [self.cacheExtra removeObjectForKey:kIslandKey];
+    } else {
+        art[@"ArtworkDeviceSubType"] = @(v);
+        self.cacheExtra[kIslandKey] = @YES;
+    }
+    if (art.count) self.cacheExtra[kArtKey] = art;
+    else [self.cacheExtra removeObjectForKey:kArtKey];
+    BQLog(@"subtype -> %ld", (long)v);
+    [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:2]
+                 withRowAnimation:UITableViewRowAnimationAutomatic];
+}
+
 - (void)chooseSubtype {
     NSArray *opts = @[
-        @{@"title": [NSString stringWithFormat:@"Original (%ld)", (long)self.originalSubtype], @"value": @(self.originalSubtype)},
+        @{@"title": @"Original", @"value": @0},
         @{@"title": @"iPhone 14 Pro (2556)", @"value": @2556},
         @{@"title": @"iPhone 14 Pro Max (2796)", @"value": @2796},
-        @{@"title": @"iPhone 15 Pro Max (2976)", @"value": @2976},
-        @{@"title": @"iPhone 16 Pro (2622)", @"value": @2622},
-        @{@"title": @"iPhone 16 Pro Max (2868)", @"value": @2868},
+        @{@"title": @"iPhone 15 Pro (2556)", @"value": @2556},
+        @{@"title": @"iPhone 15 Pro Max / 17 (2976)", @"value": @2976},
+        @{@"title": @"iPhone 16 Pro / 17 Pro (2622)", @"value": @2622},
+        @{@"title": @"iPhone 16 Pro Max / 17 Pro Max (2868)", @"value": @2868},
         @{@"title": @"iPhone Air (2736)", @"value": @2736},
+        @{@"title": @"iPhone 17 / 18 (custom subtype...)", @"value": @(-1)},
     ];
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Device Subtype"
-                                                               message:@"Only changes the Dynamic Island position. Visual artifacts are possible."
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Dynamic Island model"
+                                                               message:@"Sets ArtworkDeviceSubType and enables Dynamic Island. 17/18 values are experimental; use a custom subtype if the island position is wrong."
                                                         preferredStyle:UIAlertControllerStyleActionSheet];
     for (NSDictionary *o in opts) {
         [a addAction:[UIAlertAction actionWithTitle:o[@"title"] style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
-            NSMutableDictionary *art = [self.cacheExtra[kArtKey] isKindOfClass:[NSDictionary class]]
-                ? [self.cacheExtra[kArtKey] mutableCopy] : [NSMutableDictionary dictionary];
             NSInteger v = [o[@"value"] integerValue];
-            if (v == 0) [art removeObjectForKey:@"ArtworkDeviceSubType"];
-            else art[@"ArtworkDeviceSubType"] = @(v);
-            self.cacheExtra[kArtKey] = art;
-            BQLog(@"subtype -> %ld", (long)v);
-            [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:2]
-                         withRowAnimation:UITableViewRowAnimationAutomatic];
+            if (v == -1) {
+                [self askCustomSubtype];
+            } else {
+                [self setSubtype:v];
+            }
         }]];
     }
     [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:2]];
+    UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:1 inSection:2]];
     a.popoverPresentationController.sourceView = cell ?: self.view;
     a.popoverPresentationController.sourceRect = cell ? cell.bounds : CGRectMake(self.view.bounds.size.width/2, self.view.bounds.size.height/2, 1, 1);
     [self presentViewController:a animated:YES completion:nil];
 }
+
+- (void)askCustomSubtype {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Custom subtype"
+                                                               message:@"Enter the ArtworkDeviceSubType integer. Wrong values can break layout. Try 2976 for 17/18."
+                                                        preferredStyle:UIAlertControllerStyleAlert];
+    [a addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+        tf.keyboardType = UIKeyboardTypeNumberPad;
+        tf.placeholder = @"e.g. 2976";
+    }];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Apply" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
+        NSInteger v = [BQTrim(a.textFields.firstObject.text) integerValue];
+        if (v > 0) [self setSubtype:v];
+    }]];
+    [self presentViewController:a animated:YES completion:nil];
+}
+
+#pragma mark - Advanced
+
+- (NSString *)versionSummary {
+    NSString *v = self.cacheExtra[kVersionKey];
+    NSString *b = self.cacheExtra[kBuildKey];
+    if (!v.length && !b.length) return @"off";
+    return [NSString stringWithFormat:@"%@ (%@)", v.length ? v : @"?", b.length ? b : @"?"];
+}
+
+- (void)spoofVersion {
+    NSString *v = self.cacheExtra[kVersionKey] ?: [UIDevice currentDevice].systemVersion ?: @"";
+    NSString *b = self.cacheExtra[kBuildKey] ?: self.mg[@"CacheVersion"] ?: @"";
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Spoof iOS version"
+                                                               message:@"Writes ProductVersion/BuildVersion into MobileGestalt. Apps and system components that query MG will see these values. OTA/update behavior may break. Keep the original backup."
+                                                        preferredStyle:UIAlertControllerStyleAlert];
+    [a addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+        tf.placeholder = @"Marketing version (e.g. 27.2)";
+        tf.text = v;
+    }];
+    [a addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+        tf.placeholder = @"Build (e.g. 24B115)";
+        tf.text = b;
+    }];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Remove" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x) {
+        [self.cacheExtra removeObjectForKey:kVersionKey];
+        [self.cacheExtra removeObjectForKey:kBuildKey];
+        [self.cacheExtra removeObjectForKey:kHumanVersionKey];
+        [self.cacheExtra removeObjectForKey:kVersionExtraKey];
+        BQLog(@"version spoof removed");
+        [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:3]
+                     withRowAnimation:UITableViewRowAnimationAutomatic];
+    }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Apply" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
+        NSString *nv = BQTrim(a.textFields[0].text);
+        NSString *nb = BQTrim(a.textFields[1].text);
+        if (nv.length) self.cacheExtra[kVersionKey] = nv;
+        else [self.cacheExtra removeObjectForKey:kVersionKey];
+        if (nb.length) self.cacheExtra[kBuildKey] = nb;
+        else [self.cacheExtra removeObjectForKey:kBuildKey];
+        if (nv.length) self.cacheExtra[kHumanVersionKey] = nv;
+        else [self.cacheExtra removeObjectForKey:kHumanVersionKey];
+        [self.cacheExtra removeObjectForKey:kVersionExtraKey];
+        BQLog(@"version spoof -> %@ (%@)", nv, nb);
+        [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:3]
+                     withRowAnimation:UITableViewRowAnimationAutomatic];
+    }]];
+    [self presentViewController:a animated:YES completion:nil];
+}
+
+- (NSString *)aiModelName {
+    NSString *p = self.cacheExtra[kProductTypeKey];
+    for (NSDictionary *o in BQAIModelOptions()) {
+        NSString *op = o[@"product"];
+        if (op.length && [p isEqualToString:op]) return o[@"title"];
+    }
+    return @"Original";
+}
+
+- (void)chooseAIModel {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:@"AI device spoof"
+                                                               message:@"Spoofs ProductType, HardwareModel and CPUModel so Apple Intelligence/Siri checks see a supported device. This can temporarily break Face ID and system stability. A backup is kept in OriginalGestalt.plist."
+                                                        preferredStyle:UIAlertControllerStyleActionSheet];
+    for (NSDictionary *o in BQAIModelOptions()) {
+        [a addAction:[UIAlertAction actionWithTitle:o[@"title"] style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
+            if (![o[@"product"] length]) {
+                if (self.originalProductType.length) self.cacheExtra[kProductTypeKey] = self.originalProductType;
+                else [self.cacheExtra removeObjectForKey:kProductTypeKey];
+                if (self.originalHardware.length) self.cacheExtra[kHardwareKey] = self.originalHardware;
+                else [self.cacheExtra removeObjectForKey:kHardwareKey];
+                if (self.originalCPU.length) self.cacheExtra[kCPUKey] = self.originalCPU;
+                else [self.cacheExtra removeObjectForKey:kCPUKey];
+                if (self.originalRegulatory.length) self.cacheExtra[kRegulatoryKey] = self.originalRegulatory;
+                else [self.cacheExtra removeObjectForKey:kRegulatoryKey];
+                BQLog(@"AI spoof -> original");
+            } else {
+                self.cacheExtra[kProductTypeKey] = o[@"product"];
+                self.cacheExtra[kHardwareKey] = o[@"hw"];
+                self.cacheExtra[kCPUKey] = o[@"cpu"];
+                if ([o[@"reg"] length]) self.cacheExtra[kRegulatoryKey] = o[@"reg"];
+                self.cacheExtra[kAIKey] = @1;
+                BQLog(@"AI spoof -> %@ (%@/%@)", o[@"title"], o[@"product"], o[@"hw"]);
+            }
+            [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:3]
+                         withRowAnimation:UITableViewRowAnimationAutomatic];
+        }]];
+    }
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:3 inSection:3]];
+    a.popoverPresentationController.sourceView = cell ?: self.view;
+    a.popoverPresentationController.sourceRect = cell ? cell.bounds : CGRectMake(self.view.bounds.size.width/2, self.view.bounds.size.height/2, 1, 1);
+    [self presentViewController:a animated:YES completion:nil];
+}
+
+- (BOOL)aiOn { return [self.cacheExtra[kAIKey] boolValue]; }
+- (BOOL)siriOn {
+    return [self.cacheExtra[kSiriRegionKey] isEqualToString:@"LL"] &&
+           [self.cacheExtra[kSiriRegionCodeKey] isEqualToString:@"LL/A"];
+}
+- (BOOL)ipadOSOn {
+    for (NSString *key in BQIPadOSKeys()) {
+        if (![self.cacheExtra[key] boolValue]) return NO;
+    }
+    return YES;
+}
+- (BOOL)researchOn { return [self.cacheExtra[kResearchKey] boolValue]; }
+- (BOOL)storeDemoOn { return [self.cacheExtra[kStoreDemoKey] boolValue]; }
+
+- (void)riskySwitch:(UISwitch *)sw title:(NSString *)title message:(NSString *)message action:(void (^)(void))action {
+    if (!sw.isOn) {
+        action();
+        return;
+    }
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:title
+                                                               message:message
+                                                        preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:^(UIAlertAction *x) {
+        sw.on = NO;
+    }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Continue" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x) {
+        action();
+    }]];
+    [self presentViewController:a animated:YES completion:nil];
+}
+
+- (BOOL)setIPadOS:(BOOL)on error:(NSString **)err {
+    if (on) {
+        NSData *base = self.originalCacheData ?: self.mg[@"CacheData"];
+        NSData *patched = BQPatchIPadOSCacheData(base, err);
+        if (!patched) return NO;
+        self.mg[@"CacheData"] = patched;
+        for (NSString *key in BQIPadOSKeys()) self.cacheExtra[key] = @1;
+    } else {
+        if (self.originalCacheData) self.mg[@"CacheData"] = self.originalCacheData;
+        for (NSString *key in BQIPadOSKeys()) [self.cacheExtra removeObjectForKey:key];
+    }
+    return YES;
+}
+
+- (void)advancedSwitchChanged:(UISwitch *)sw {
+    NSInteger row = sw.tag;
+    if (row == 1) {
+        [self riskySwitch:sw title:@"Enable Apple Intelligence?"
+                  message:@"Writes DeviceSupportsGenerativeModelSystems. On iOS 27.2 eligibility checks may still block AI, and this can affect system stability. Keep the backup."
+                   action:^{
+            if (sw.isOn) self.cacheExtra[kAIKey] = @1;
+            else [self.cacheExtra removeObjectForKey:kAIKey];
+            BQLog(@"Apple Intelligence -> %d", sw.isOn);
+        }];
+    } else if (row == 2) {
+        [self riskySwitch:sw title:@"Enable Siri AI US region?"
+                  message:@"Sets the US region and generative-model capability. Force-enabling on unsupported devices can break Face ID or system stability."
+                   action:^{
+            if (sw.isOn) {
+                self.cacheExtra[kAIKey] = @1;
+                self.cacheExtra[kSiriRegionKey] = @"LL";
+                self.cacheExtra[kSiriRegionCodeKey] = @"LL/A";
+            } else {
+                [self.cacheExtra removeObjectForKey:kSiriRegionKey];
+                [self.cacheExtra removeObjectForKey:kSiriRegionCodeKey];
+            }
+            BQLog(@"Siri AI region -> %d", sw.isOn);
+        }];
+    } else if (row == 4) {
+        [self riskySwitch:sw title:@"Enable iPadOS mode?"
+                  message:@"Patches the binary CacheData blob and five Medusa/Stage Manager keys. This is experimental and high risk: layout, multitasking and boot behavior can break. A full restore may be required."
+                   action:^{
+            NSString *err = nil;
+            if (![self setIPadOS:sw.isOn error:&err]) {
+                sw.on = NO;
+                BQAlert(self, @"iPadOS mode failed", err ?: @"CacheData patch failed");
+            }
+            BQLog(@"iPadOS mode -> %d", sw.isOn);
+        }];
+    } else if (row == 5) {
+        [self riskySwitch:sw title:@"Enable Security Research Device?"
+                  message:@"Sets ResearchFuse. iOS will treat this iPhone as a research-fused test device. This is cosmetic on most builds but can affect services and is high risk."
+                   action:^{
+            if (sw.isOn) self.cacheExtra[kResearchKey] = @1;
+            else [self.cacheExtra removeObjectForKey:kResearchKey];
+            BQLog(@"ResearchFuse -> %d", sw.isOn);
+        }];
+    } else if (row == 6) {
+        [self riskySwitch:sw title:@"Enable Store Demo Mode?"
+                  message:@"Sets StoreDemoMode. iOS may show demo-device messaging and change setup behavior. High risk; keep the backup."
+                   action:^{
+            if (sw.isOn) self.cacheExtra[kStoreDemoKey] = @1;
+            else [self.cacheExtra removeObjectForKey:kStoreDemoKey];
+            BQLog(@"StoreDemoMode -> %d", sw.isOn);
+        }];
+    }
+    [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:3]
+                 withRowAnimation:UITableViewRowAnimationAutomatic];
+}
+
+#pragma mark - Actions
 
 - (void)applyTweaks {
     if (!self.mg) { BQAlert(self, @"MobileGestalt", @"Not loaded yet."); return; }
@@ -258,14 +646,15 @@ static NSString *BQValueSummary(id v) {
 
 #pragma mark - Table
 
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 4; }
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 5; }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     switch (section) {
         case 0: return 3;
         case 1: return self.presets.count;
-        case 2: return 1;
-        case 3: return self.keys.count;
+        case 2: return 3;
+        case 3: return 7;
+        case 4: return self.keys.count;
     }
     return 0;
 }
@@ -274,8 +663,9 @@ static NSString *BQValueSummary(id v) {
     switch (section) {
         case 0: return @"Actions";
         case 1: return @"Tweaks";
-        case 2: return @"Device Subtype";
-        case 3: return @"CacheExtra";
+        case 2: return @"Dynamic Island";
+        case 3: return @"Advanced";
+        case 4: return @"CacheExtra";
     }
     return nil;
 }
@@ -285,8 +675,10 @@ static NSString *BQValueSummary(id v) {
         case 1:
             return @"These tweaks can break features or softbrick the device if misused. Backup exists in Documents/OriginalGestalt.plist.";
         case 2:
-            return @"Optional: moves the Dynamic Island position. Does not change the device model name.";
+            return @"ArtworkDeviceSubType controls Dynamic Island position. 17/18 values are experimental; use a custom subtype if the island overlaps the status bar.";
         case 3:
+            return @"Advanced tweaks are high risk. iPadOS mode patches CacheData. AI/Siri spoofing can break Face ID. Store Demo and ResearchFuse change device identity. Keep the original backup.";
+        case 4:
             return @"Tap a key to edit; swipe left to delete. Changes are written only when you tap Apply.";
     }
     return nil;
@@ -329,12 +721,68 @@ static NSString *BQValueSummary(id v) {
         return cell;
     }
     if (indexPath.section == 2) {
-        UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"subtype"];
-        if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"subtype"];
-        cell.textLabel.text = @"Subtype";
-        cell.detailTextLabel.text = [self currentSubtypeName];
-        cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
-        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        if (indexPath.row == 0) {
+            UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"island"];
+            if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"island"];
+            cell.textLabel.text = @"Enable Dynamic Island";
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
+            UISwitch *sw = (UISwitch *)cell.accessoryView;
+            if (![sw isKindOfClass:[UISwitch class]]) {
+                sw = [[UISwitch alloc] init];
+                sw.onTintColor = self.view.tintColor;
+                [sw addTarget:self action:@selector(dynamicIslandChanged:) forControlEvents:UIControlEventValueChanged];
+                cell.accessoryView = sw;
+            }
+            sw.on = [self islandOn];
+            return cell;
+        }
+        if (indexPath.row == 1) {
+            UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"subtype"];
+            if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"subtype"];
+            cell.textLabel.text = @"Model / position";
+            cell.detailTextLabel.text = [self currentSubtypeName];
+            cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
+            cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+            return cell;
+        }
+        UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"resetisland"];
+        if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"resetisland"];
+        cell.textLabel.text = @"Disable + reset to original";
+        cell.textLabel.textColor = [UIColor systemRedColor];
+        cell.accessoryType = UITableViewCellAccessoryNone;
+        return cell;
+    }
+    if (indexPath.section == 3) {
+        if (indexPath.row == 0 || indexPath.row == 3) {
+            UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"advancedvalue"];
+            if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"advancedvalue"];
+            if (indexPath.row == 0) {
+                cell.textLabel.text = @"Spoof iOS version";
+                cell.detailTextLabel.text = [self versionSummary];
+            } else {
+                cell.textLabel.text = @"AI device spoof";
+                cell.detailTextLabel.text = [self aiModelName];
+            }
+            cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
+            cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+            return cell;
+        }
+        UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"advancedswitch"];
+        if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"advancedswitch"];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        UISwitch *sw = (UISwitch *)cell.accessoryView;
+        if (![sw isKindOfClass:[UISwitch class]]) {
+            sw = [[UISwitch alloc] init];
+            sw.onTintColor = self.view.tintColor;
+            [sw addTarget:self action:@selector(advancedSwitchChanged:) forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = sw;
+        }
+        sw.tag = indexPath.row;
+        if (indexPath.row == 1) { cell.textLabel.text = @"Apple Intelligence"; sw.on = [self aiOn]; }
+        else if (indexPath.row == 2) { cell.textLabel.text = @"Siri AI (US region)"; sw.on = [self siriOn]; }
+        else if (indexPath.row == 4) { cell.textLabel.text = @"iPadOS mode (experimental)"; sw.on = [self ipadOSOn]; }
+        else if (indexPath.row == 5) { cell.textLabel.text = @"Security Research Device"; sw.on = [self researchOn]; }
+        else { cell.textLabel.text = @"Store Demo Mode"; sw.on = [self storeDemoOn]; }
         return cell;
     }
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"ce"];
@@ -358,14 +806,18 @@ static NSString *BQValueSummary(id v) {
         else if (indexPath.row == 1) [self revertTweaks];
         else [self respring];
     } else if (indexPath.section == 2) {
-        [self chooseSubtype];
+        if (indexPath.row == 1) [self chooseSubtype];
+        else if (indexPath.row == 2) [self resetDynamicIsland];
     } else if (indexPath.section == 3) {
+        if (indexPath.row == 0) [self spoofVersion];
+        else if (indexPath.row == 3) [self chooseAIModel];
+    } else if (indexPath.section == 4) {
         [self editKeyAtIndexPath:indexPath];
     }
 }
 
 - (UISwipeActionsConfiguration *)tableView:(UITableView *)tableView trailingSwipeActionsConfigurationForRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (indexPath.section != 3) return nil;
+    if (indexPath.section != 4) return nil;
     UIContextualAction *del = [UIContextualAction contextualActionWithStyle:UIContextualActionStyleDestructive
                                                                      title:@"Delete"
                                                                    handler:^(UIContextualAction *a, UIView *v, void (^done)(BOOL)) {

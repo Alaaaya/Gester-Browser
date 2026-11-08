@@ -46,13 +46,18 @@ enough to:
 
 The included app is a full UIKit toolbox:
 
-- **Gestalt** — presets (Dynamic Island, AOD, Boot Chime, Charge Limit, Tap to
-  Wake, Stage Manager, Apple Pencil, Action Button, Collision SOS, Parallax
-  off), device-subtype picker, full `CacheExtra` editor (add/edit/delete;
-  String/Integer/Boolean/Data), apply/revert/respring, backup.
+- **Gestalt** — Dynamic Island on/off, Dynamic Island model picker (14/15/16/
+  17/18 experimental or custom subtype), version spoof, Apple Intelligence,
+  Siri AI US region, AI device spoof, iPadOS mode, Security Research Device
+  (ResearchFuse), Store Demo Mode, AOD, Boot Chime, Charge Limit, Tap to Wake,
+  Stage Manager, Apple Pencil, Action Button, Collision SOS, Parallax off,
+  full `CacheExtra` editor (add/edit/delete; String/Integer/Boolean/Data),
+  apply/revert/respring, backup.
 - **PosterBoard** — import `.tendies`, apply all, online wallpaper catalog
   (`SerStars/Nugget-Wallpapers`), reset, open PosterBoard, respring.
-- **Settings** — diagnostics, in-place/atomic write toggle, log viewer.
+- **Settings** — diagnostics, in-place/atomic write toggle, log viewer, and a
+  test-device banner: “This iPhone is provided specifically for testing” with
+  an editable “Managed by group:” label.
 
 ---
 
@@ -103,7 +108,7 @@ get a non-empty `partDomain` to validate.
 The symlink is removed and the original `Library/Caches` restored after each
 operation. Crashes are recovered on the next run (`Caches.bqtool` backup).
 
-### 2.3 Why not the app's own container (class 2)?
+### 2.3 Class 2: part directories vs. the parent fallback
 
 On iOS 27.2 the sandbox denies `rename()` of every class-2 part directory from
 inside the app:
@@ -116,8 +121,19 @@ tmp                  -> EPERM (errno 1)
 SystemData           -> EPERM (errno 1)
 ```
 
-Only the app-group part directory is writable/renameable, so an app group is
-required for the primary strategy. This is a sandbox policy limit.
+Only the app-group part directory is directly renameable. KAMUI 2.2 adds an
+automatic **class-2 parent fallback** for builds without an app group:
+
+1. Rename the app's own `Library` to `Library.bqtool`.
+2. Create a small fresh `Library` and symlink `Library/Caches` to the target.
+3. Query class 2 (own bundle identifier, part 3, empty `partDomain`,
+   flags `0x8100000000`).
+4. Restore the original `Library` immediately; the consumed token remains
+   valid for the resolved target.
+
+If the sandbox also denies moving `Library`, the app reports the failure in
+`bqtool.log` and the primary class-7 path still needs an app group. The log
+line to look for is `strategy class2-parent`.
 
 ### 2.4 Dynamic app group
 
@@ -142,8 +158,9 @@ hardcoded identifier.
 |---|---|---|---|
 | 1 | class 13 + `partDomain` traversal (old `bad_query`) | no | 27.0.x where traversal is still open |
 | 2 | class 7 part-directory symlink | yes | 27.2 |
-| 3 | class 13 direct MG query | no | builds that issue a token |
-| 4 | class 12 geod + traversal | no | older builds |
+| 3 | class 2 parent `Library` symlink (2.2) | no | 27.2 if `Library` rename is allowed |
+| 4 | class 13 direct MG query | no | builds that issue a token |
+| 5 | class 12 geod + traversal | no | older builds |
 
 The first successful strategy is used. A result but no token is logged as
 `token=NO consume=-5` (`-5` is the app's "no token / consume failed", not an
@@ -178,7 +195,7 @@ Requirements: Linux/macOS, clang, an iOS SDK (Theos SDK works), zlib.
 
 ```bash
 ./build.sh
-# -> build/KAMUI-2.1.ipa
+# -> build/KAMUI-2.2.ipa
 ```
 
 The default bundle identifier is `com.kamui.escape`. Override with `BID=...`.
@@ -188,7 +205,7 @@ The SDK path can be overridden with `SDK=...`.
 
 ## 5. Install and runtime requirement
 
-Anyone can install `KAMUI-2.1.ipa`; use whatever installation method you
+Anyone can install `KAMUI-2.2.ipa`; use whatever installation method you
 normally use.
 
 The primary 27.2 strategy needs the running app to have at least one
@@ -243,6 +260,11 @@ escape: using class7 symlink
 
 ## 8. Version notes
 
+- **2.2** — adds the class-2 parent fallback for builds without an app group,
+  Dynamic Island enable/disable and model picker, version spoof, Apple
+  Intelligence, Siri AI US region, AI device spoof, iPadOS mode, ResearchFuse
+  (Security Research Device), Store Demo Mode, and the in-app test-device /
+  “Managed by group” banner.
 - **27.2 (24B115)** — primary, tested: class-13 traversal closed; class-7
   part-directory symlink works.
 - **27.0.1 / 27.1** — the class-13 traversal or class-12 geod fallback may
@@ -260,6 +282,7 @@ For each device/build send the first 15–20 lines of `Documents/bqtool.log`:
 app group entitlement: <group or (none)>
 strategy class13-traversal: result=... token=... consume=...
 strategy class7-symlink: result=... token=... consume=...
+strategy class2-parent: result=... token=... consume=...
 escape: using ...
 ```
 
@@ -279,8 +302,11 @@ This distinguishes:
   paths reachable through the legacy traversal on vulnerable builds).
 - POSIX DAC still applies; write only where user `mobile` can write.
 - MobileGestalt edits can break features or soft-brick the device. Keep the
-  backup. Do not apply unknown keys. Risky keys (iPadOS mode, internal install)
-  are not part of the presets for a reason.
+  backup. Do not apply unknown keys.
+- iPadOS mode, Apple Intelligence/Siri spoofing, ResearchFuse, Store Demo Mode
+  and version spoofing are behind confirmation prompts for a reason. iPadOS
+  mode patches the binary `CacheData` blob; AI/Siri spoofing can break Face ID;
+  version spoofing can break OTA updates. Revert if anything misbehaves.
 - PosterBoard Reset removes **all** descriptors from the three provider
   folders, including stock collections; PosterBoard normally regenerates stock
   ones.
@@ -327,9 +353,9 @@ use, copy, modify, merge, publish, distribute, sublicense and sell copies of
 the software, including the MobileGestalt editor, as long as the copyright and
 permission notice are preserved.
 
-`v2.1`:
+`v2.2`:
 
-- `KAMUI-2.1.ipa` — the app; install it on any supported device.
+- `KAMUI-2.2.ipa` — the app; install it on any supported device.
 - Source code and build script are in this repository.
 
 There is no allowlist and no special access. The anime name is for fun; the
