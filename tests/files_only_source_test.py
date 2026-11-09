@@ -15,3 +15,4 @@ print('files_only_source_test PASS')
 h=r('tests/browser_smoke.m'); sh=r('tests/browser_smoke.sh')
 assert '#import "RootTabBarController.h"' in h and 'RootTabBarController new' in h
 assert 'RootTabBarController.m' in sh
+assert 'SMOKE_FILES_ONLY_PASS' in h and 'SMOKE_FILES_ONLY_PASS' in sh
