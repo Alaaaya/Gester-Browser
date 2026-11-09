@@ -2,6 +2,7 @@
 #import <objc/runtime.h>
 #import "ReadOnlyBrowserVC.h"
 #import "GBSafeWrite.h"
+#import "RootTabBarController.h"
 @interface ReadOnlyBrowserVC (Smoke)
 - (id)locationForURL:(NSURL *)url scoped:(BOOL)scope;
 - (BOOL)writableFolder;
@@ -97,24 +98,25 @@ static void VerifySafeGates(UINavigationController *nav) {
         NSLog(@"SUPER_SELECTOR %@ %s", name, method ? method_getTypeEncoding(method) : "absent");
     }
     self.window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
-    UIViewController *blank = [UIViewController new];
-    ReadOnlyBrowserVC *browser = [ReadOnlyBrowserVC new];
-    UITabBarController *tabs = [UITabBarController new];
-    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:browser];
-    nav.navigationBar.prefersLargeTitles = YES;
-    tabs.viewControllers = @[blank, nav];
+    RootTabBarController *tabs = [RootTabBarController new];
     self.window.rootViewController = tabs;
+    [tabs loadViewIfNeeded];
+    NSCAssert(tabs.viewControllers.count == 1, @"Single Files root");
+    NSCAssert(tabs.selectedIndex == 0, @"Files selected first");
+    NSCAssert(tabs.view.effectiveUserInterfaceLayoutDirection == UIUserInterfaceLayoutDirectionLeftToRight, @"Root LTR");
+    UINavigationController *nav = (UINavigationController *)tabs.viewControllers.firstObject;
+    NSCAssert([nav isKindOfClass:UINavigationController.class], @"Files nav");
+    ReadOnlyBrowserVC *browser = (ReadOnlyBrowserVC *)nav.viewControllers.firstObject;
+    NSCAssert([browser isKindOfClass:ReadOnlyBrowserVC.class], @"Root is actual Files browser");
+    NSLog(@"SMOKE_ROOT_PASS single Files tab selected 0 LTR");
     [self.window makeKeyAndVisible];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-        tabs.selectedIndex = 1;
         [browser loadViewIfNeeded];
         NSLog(@"SMOKE_OPENED");
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3*NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             NSInteger rows = [browser tableView:browser.tableView numberOfRowsInSection:0];
             NSCAssert(rows > 0, @"Authorized app root must list at least Library and tmp");
             NSLog(@"SMOKE_ROOT_ROWS %ld", (long)rows);
-            tabs.selectedIndex = 0;
-            tabs.selectedIndex = 1;
             VerifySafeGates(nav);
             [browser.view setNeedsLayout]; [browser.view layoutIfNeeded];
             UILabel *notice = [browser valueForKey:@"notice"];
