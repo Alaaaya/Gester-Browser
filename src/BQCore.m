@@ -751,6 +751,10 @@ int64_t BQEscape(NSString *target, NSString **linkOut) {
         last = h;
     }
 
+    if (!gid.length && !gClass2ParentEnabled && last < 0) {
+        last = -6;
+    }
+
     BQLog(@"escape: all strategies failed (last=%lld) target=%@", (long long)last, target);
     return last;
 }

@@ -223,6 +223,12 @@ static NSString *BQValueSummary(id v) {
                 UIAlertController *a = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"MobileGestalt", nil)
                                                                            message:msg
                                                                     preferredStyle:UIAlertControllerStyleAlert];
+                if (!BQGroupID().length && !BQClass2ParentEnabled()) {
+                    [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Enable Class-2 Fallback", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
+                        BQSetClass2ParentEnabled(YES);
+                        [self loadGestalt];
+                    }]];
+                }
                 [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
                 [a addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Retry", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
                     [self loadGestalt];
