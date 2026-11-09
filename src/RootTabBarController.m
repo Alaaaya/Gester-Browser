@@ -1,32 +1,24 @@
 #import "RootTabBarController.h"
-#import "GestaltVC.h"
-#import "PosterBoardVC.h"
-#import "SettingsVC.h"
 #import "ReadOnlyBrowserVC.h"
 
 @implementation RootTabBarController
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.view.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    self.tabBar.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     self.view.backgroundColor = [UIColor systemBackgroundColor];
 
-    UINavigationController *(^nav)(UIViewController *, NSString *, NSString *) =
-        ^UINavigationController *(UIViewController *root, NSString *title, NSString *icon) {
-            root.title = title;
-            UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:root];
-            n.tabBarItem = [[UITabBarItem alloc] initWithTitle:title
-                                                         image:[UIImage systemImageNamed:icon]
-                                                 selectedImage:[UIImage systemImageNamed:icon]];
-            n.navigationBar.prefersLargeTitles = YES;
-            return n;
-        };
-
-    self.viewControllers = @[
-        nav([[GestaltVC alloc] init], NSLocalizedString(@"Gestalt", nil), @"slider.horizontal.3"),
-        nav([[PosterBoardVC alloc] init], NSLocalizedString(@"PosterBoard", nil), @"photo.on.rectangle"),
-        nav([[ReadOnlyBrowserVC alloc] init], [[[NSLocale preferredLanguages] firstObject] hasPrefix:@"ar"] ? @"الملفات" : @"Files", @"folder"),
-        nav([[SettingsVC alloc] init], NSLocalizedString(@"Settings", nil), @"gearshape"),
-    ];
+    NSString *title = [[[NSLocale preferredLanguages] firstObject] hasPrefix:@"ar"] ? @"الملفات" : @"Files";
+    ReadOnlyBrowserVC *files = [[ReadOnlyBrowserVC alloc] init];
+    files.title = title;
+    UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:files];
+    n.view.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    n.tabBarItem = [[UITabBarItem alloc] initWithTitle:title
+                                                 image:[UIImage systemImageNamed:@"folder"]
+                                         selectedImage:[UIImage systemImageNamed:@"folder"]];
+    n.navigationBar.prefersLargeTitles = YES;
+    self.viewControllers = @[n];
     self.selectedIndex = 0;
 }
 

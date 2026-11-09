@@ -1,8 +1,10 @@
-# Safe Files extension 2.5
+# Safe Files extension 2.6
 
-The original toolbox is unchanged. This extension has no dependency on BQCore,
+Version 2.6 exposes a single Files screen (no Gestalt, PosterBoard or Settings UI). Legacy toolbox source is retained but unreachable; startup runs no BQCore init or self-tests. This extension has no dependency on BQCore,
 exploit state, MCM, or sandbox extensions. It does not make other app containers
 available. Existing Files root crash fix is retained.
+
+Reachable scope is exactly: the app's own sandbox plus folders explicitly selected in Files. No broader cross-container access, arbitrary path entry or bypass exists.
 
 Browse and preview own sandbox or locations explicitly selected in Files.
 Writes are restricted further to own Documents/tmp or user-selected provider
