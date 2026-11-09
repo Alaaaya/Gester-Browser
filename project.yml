@@ -34,3 +34,4 @@ targets:
           - -framework CoreFoundation
           - -framework CoreGraphics
           - -framework WebKit
+          - -framework ImageIO

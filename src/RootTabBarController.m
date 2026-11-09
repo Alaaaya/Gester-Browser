@@ -2,6 +2,7 @@
 #import "GestaltVC.h"
 #import "PosterBoardVC.h"
 #import "SettingsVC.h"
+#import "ReadOnlyBrowserVC.h"
 
 @implementation RootTabBarController
 
@@ -23,6 +24,7 @@
     self.viewControllers = @[
         nav([[GestaltVC alloc] init], NSLocalizedString(@"Gestalt", nil), @"slider.horizontal.3"),
         nav([[PosterBoardVC alloc] init], NSLocalizedString(@"PosterBoard", nil), @"photo.on.rectangle"),
+        nav([[ReadOnlyBrowserVC alloc] init], [[[NSLocale preferredLanguages] firstObject] hasPrefix:@"ar"] ? @"الملفات" : @"Files", @"folder"),
         nav([[SettingsVC alloc] init], NSLocalizedString(@"Settings", nil), @"gearshape"),
     ];
     self.selectedIndex = 0;
