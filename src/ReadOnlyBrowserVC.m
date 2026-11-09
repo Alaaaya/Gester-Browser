@@ -57,6 +57,10 @@ static void RODescribePlist(id value, NSMutableString *out, NSUInteger depth, NS
 // Walk every component relative to an already authorized descriptor.
 // Never follow symbolic links, accept absolute paths or permit parent traversal.
 static int ROOpen(ROLocation *location, NSString *relative) {
+    // The empty relative path means the authorized root itself. Foundation throws
+    // when asked for an empty NSString fileSystemRepresentation, before ROOpenRelative
+    // can handle it. Pass the C empty path directly so the policy duplicates root.
+    if (relative.length == 0) return ROOpenRelative(location.descriptor, "");
     return ROOpenRelative(location.descriptor, relative.fileSystemRepresentation);
 }
 @interface ReadOnlyBrowserVC () <UISearchResultsUpdating, UIDocumentPickerDelegate>
