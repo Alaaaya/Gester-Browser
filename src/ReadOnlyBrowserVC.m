@@ -110,6 +110,7 @@ static int ROOpen(ROLocation *location, NSString *relative) {
 @property(nonatomic,strong) NSURL *backupTemporaryURL;
 @property(nonatomic) NSInteger backupPickerPhase;
 @property(nonatomic) BOOL backupVerified;
+@property(nonatomic) BOOL finalConfirmation;
 @property(nonatomic,strong) NSData *editingOriginal;
 @property(nonatomic,strong) GBTextEditor *draftEditor;
 
@@ -558,7 +559,7 @@ static int ROOpen(ROLocation *location, NSString *relative) {
     if (!self.backupBytes || ![self.backupBytes writeToURL:self.backupTemporaryURL options:NSDataWritingWithoutOverwriting error:&error]) {
         [self cancelPending]; [self message:ROText(@"Backup creation failed. Nothing changed.", @"فشل تجهيز النسخة الاحتياطية. ما تغير شي.")]; return;
     }
-    self.backupVerified = NO;
+    self.backupVerified = NO; self.finalConfirmation = NO;
     self.backupPickerPhase = 1;
     UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForExportingURLs:@[self.backupTemporaryURL] asCopy:YES];
     picker.delegate = self;
@@ -619,11 +620,11 @@ static int ROOpen(ROLocation *location, NSString *relative) {
         ROText(@"External backup verified byte-for-byte. No overwrite or delete. Apply this one change?", @"تأكدنا من النسخة الخارجية بايت ببايت. بدون استبدال أو حذف. نطبق هالتغيير بس؟")];
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:ROText(@"Confirm change", @"تأكيد التغيير") message:summary preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:ROText(@"Cancel", @"إلغاء") style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) { [self cancelPending]; }]];
-    [alert addAction:[UIAlertAction actionWithTitle:ROText(@"Apply", @"تطبيق") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) { [self executePending]; }]];
+    [alert addAction:[UIAlertAction actionWithTitle:ROText(@"Apply", @"تطبيق") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) { self.finalConfirmation = YES; [self executePending]; }]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 - (void)executePending {
-    if (!self.pendingWrite || !self.backupVerified || ![self writableFolder]) { [self cancelPending]; return; }
+    if (!self.pendingWrite || !self.backupVerified || !self.finalConfirmation || ![self writableFolder]) { [self cancelPending]; return; }
     NSDictionary *plan = self.pendingWrite;
     NSURL *folder = self.relative.length ? [self.location.url URLByAppendingPathComponent:self.relative] : self.location.url;
     __block BOOL success = NO;
@@ -659,7 +660,7 @@ static int ROOpen(ROLocation *location, NSString *relative) {
         ROText(@"Operation not verified: conflict, changed folder/source, read-only provider or I/O failure. Inspect the folder; do not retry blindly. The exported backup remains.", @"ما تأكدنا من العملية، ممكن تعارض أو تغير المصدر أو المجلد للقراءة أو خطأ كتابة. افحص المجلد قبل ما تعيد. النسخة الخارجية بتضل موجودة.")];
 }
 - (void)cancelPending {
-    self.backupPickerPhase = 0; self.backupVerified = NO; self.pendingWrite = nil; self.backupBytes = nil;
+    self.backupPickerPhase = 0; self.backupVerified = NO; self.finalConfirmation = NO; self.pendingWrite = nil; self.backupBytes = nil;
     if (self.backupTemporaryURL) [[NSFileManager defaultManager] removeItemAtURL:self.backupTemporaryURL error:NULL];
     self.backupTemporaryURL = nil; self.editingOriginal = nil;
     if (self.draftEditor && ![self.navigationController.viewControllers containsObject:self.draftEditor]) {
