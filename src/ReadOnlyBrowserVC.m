@@ -1,5 +1,6 @@
 #import "ReadOnlyBrowserVC.h"
 #import "ROAccess.h"
+#import "GBSafeWrite.h"
 #import <ImageIO/ImageIO.h>
 #import <fcntl.h>
 #import <unistd.h>
@@ -45,6 +46,7 @@ static void RODescribePlist(id value, NSMutableString *out, NSUInteger depth, NS
 @property(nonatomic,strong) NSURL *url;
 @property(nonatomic) BOOL scoped;
 @property(nonatomic) int descriptor;
+@property(nonatomic) BOOL selected;
 @end
 @implementation ROLocation
 - (instancetype)init { if ((self = [super init])) _descriptor = -1; return self; }
@@ -63,6 +65,38 @@ static int ROOpen(ROLocation *location, NSString *relative) {
     if (relative.length == 0) return ROOpenRelative(location.descriptor, "");
     return ROOpenRelative(location.descriptor, relative.fileSystemRepresentation);
 }
+// Editing is bounded and saved as a NEW sibling. Originals are never overwritten.
+@interface GBTextEditor : UIViewController
+@property(nonatomic,strong) UITextView *textView;
+@property(nonatomic,copy) NSString *initialText;
+@property(nonatomic,copy) void (^saveText)(NSString *);
+@end
+@implementation GBTextEditor
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor = UIColor.systemBackgroundColor;
+    self.view.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    self.textView = [UITextView new];
+    self.textView.font = [UIFont monospacedSystemFontOfSize:15 weight:UIFontWeightRegular];
+    self.textView.text = self.initialText;
+    self.textView.textAlignment = NSTextAlignmentLeft;
+    self.textView.autocorrectionType = UITextAutocorrectionTypeNo;
+    self.textView.autocapitalizationType = UITextAutocapitalizationTypeNone;
+    self.textView.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:self.textView];
+    UILayoutGuide *g = self.view.safeAreaLayoutGuide;
+    [NSLayoutConstraint activateConstraints:@[
+        [self.textView.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:12],
+        [self.textView.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-12],
+        [self.textView.topAnchor constraintEqualToAnchor:g.topAnchor],
+        [self.textView.bottomAnchor constraintEqualToAnchor:self.view.keyboardLayoutGuide.topAnchor]]];
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
+        initWithTitle:ROText(@"Save copy", @"حفظ نسخة") style:UIBarButtonItemStyleDone target:self action:@selector(save)];
+    self.navigationItem.prompt = ROText(@"Original unchanged · maximum 256 KB", @"الأصل ما بيتغير · الحد ٢٥٦ كيلوبايت");
+}
+- (void)save { if (self.saveText) self.saveText(self.textView.text); }
+@end
+
 @interface ReadOnlyBrowserVC () <UISearchResultsUpdating, UIDocumentPickerDelegate>
 @property(nonatomic,strong) ROLocation *location;
 @property(nonatomic,copy) NSString *relative;
@@ -71,6 +105,14 @@ static int ROOpen(ROLocation *location, NSString *relative) {
 @property(nonatomic,strong) UISearchController *search;
 @property(nonatomic,strong) UILabel *notice;
 @property(nonatomic) NSUInteger generation;
+@property(nonatomic,strong) NSMutableDictionary *pendingWrite;
+@property(nonatomic,strong) NSData *backupBytes;
+@property(nonatomic,strong) NSURL *backupTemporaryURL;
+@property(nonatomic) NSInteger backupPickerPhase;
+@property(nonatomic) BOOL backupVerified;
+@property(nonatomic,strong) NSData *editingOriginal;
+@property(nonatomic,strong) GBTextEditor *draftEditor;
+
 @end
 
 @implementation ReadOnlyBrowserVC
@@ -85,6 +127,12 @@ static int ROOpen(ROLocation *location, NSString *relative) {
         initWithImage:[UIImage systemImageNamed:@"folder.badge.plus"] style:UIBarButtonItemStylePlain
         target:self action:@selector(chooseLocation)];
     self.navigationItem.rightBarButtonItem.accessibilityLabel = ROText(@"Choose a location in Files", @"اختار مكان من الملفات");
+    UIBarButtonItem *create = [[UIBarButtonItem alloc] initWithImage:[UIImage systemImageNamed:@"plus"]
+        style:UIBarButtonItemStylePlain target:self action:@selector(createFolder)];
+    create.accessibilityLabel = ROText(@"Create folder after verified backup", @"مجلد جديد بعد تأكيد النسخة الاحتياطية");
+    self.navigationItem.rightBarButtonItems = @[self.navigationItem.rightBarButtonItem, create];
+    self.tableView.rowHeight = UITableViewAutomaticDimension;
+    self.tableView.estimatedRowHeight = 70;
     self.search = [[UISearchController alloc] initWithSearchResultsController:nil];
     self.search.searchResultsUpdater = self;
     self.search.obscuresBackgroundDuringPresentation = NO;
@@ -120,6 +168,7 @@ static int ROOpen(ROLocation *location, NSString *relative) {
 }
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
     NSURL *url = urls.firstObject;
+    if (self.backupPickerPhase) { [self handleBackupPicker:urls]; return; }
     if (!url.isFileURL) return;
     // Coordinate materialization through the document provider, without write intent.
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
@@ -130,7 +179,7 @@ static int ROOpen(ROLocation *location, NSString *relative) {
         [coordinator coordinateReadingItemAtURL:url options:0 error:&error byAccessor:^(NSURL *authorizedURL) {
             location = [self locationForURL:authorizedURL scoped:NO];
         }];
-        if (location) { location.url = url; location.scoped = scope; }
+        if (location) { location.url = url; location.scoped = scope; location.selected = YES; }
         else if (scope) [url stopAccessingSecurityScopedResource];
         dispatch_async(dispatch_get_main_queue(), ^{
             if (!location) { [self message:ROError()]; return; }
@@ -148,14 +197,19 @@ static int ROOpen(ROLocation *location, NSString *relative) {
 }
 - (void)reloadFolder {
     NSUInteger token = ++self.generation;
-    self.notice.text = ROText(@"READ ONLY\nApp sandbox or a location you choose in Files. Other apps are not automatically accessible.\n", @"للقراءة فقط\nملفات التطبيق أو مكان بتختاره من الملفات. ملفات التطبيقات الثانية مو متاحة تلقائياً.\n");
+    self.notice.text = ROText(@"App files or a folder you choose in Files. Other apps are not automatically accessible. Hold a regular file for edit-copy or copy. Rename is not yet enabled. Every change requires an exported, re-opened verified backup. No delete or overwrite.\n", @"ملفات التطبيق أو مجلد بتختاره من الملفات. ملفات التطبيقات الثانية مو متاحة تلقائياً. اضغط مطوّل على ملف للتعديل بنسخة أو النسخ. تغيير الاسم مو مفعّل حالياً. كل تغيير بده نسخة احتياطية محفوظة برا التطبيق ومنرجع نفتحها لنتأكد. ما في حذف أو استبدال.\n");
     self.notice.text = [self.notice.text stringByAppendingString:
         [NSString stringWithFormat:@"%@ / %@", self.location.url.lastPathComponent ?: @"", self.relative ?: @""]];
+    [self fitNotice];
     ROLocation *location = self.location;
     NSString *relative = self.relative ?: @"";
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         NSMutableArray *rows = [NSMutableArray array];
         int fd = ROOpen(location, relative);
+        // openat(".") gives this listing its own cursor; dup(root) shares offsets.
+        int listing = fd >= 0 ? openat(fd, ".", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC) : -1;
+        if (fd >= 0) close(fd);
+        fd = listing;
         DIR *directory = fd >= 0 ? fdopendir(fd) : NULL;
         BOOL failed = directory == NULL, limited = NO;
         if (!directory && fd >= 0) close(fd);
@@ -186,6 +240,7 @@ static int ROOpen(ROLocation *location, NSString *relative) {
             if (failed) self.notice.text = [self.notice.text stringByAppendingFormat:@"\n%@", ROError()];
             else if (limited) self.notice.text = [self.notice.text stringByAppendingString:ROText(@"\nFirst 2,000 entries only.", @"\nأول ٢٠٠٠ ملف فقط.")];
             else if (!rows.count) self.notice.text = [self.notice.text stringByAppendingString:ROText(@"\nThis folder is empty.", @"\nالمجلد فاضي.")];
+            [self fitNotice];
         });
     });
 }
@@ -204,6 +259,8 @@ static int ROOpen(ROLocation *location, NSString *relative) {
     BOOL directory = [row[@"directory"] boolValue], regular = [row[@"regular"] boolValue];
     cell.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     cell.textLabel.text = row[@"name"];
+    cell.textLabel.numberOfLines = 0;
+    cell.detailTextLabel.numberOfLines = 0;
     cell.textLabel.textAlignment = NSTextAlignmentLeft;
     NSString *size = directory ? ROText(@"Folder", @"مجلد") :
         [NSByteCountFormatter stringFromByteCount:[row[@"size"] longLongValue] countStyle:NSByteCountFormatterCountStyleFile];
@@ -229,7 +286,7 @@ static int ROOpen(ROLocation *location, NSString *relative) {
     else [self message:ROText(@"Symbolic links and special files are never opened.", @"الروابط والملفات الخاصة ما بتنفتح.")];
 }
 - (void)message:(NSString *)text {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:ROText(@"Read only", @"للقراءة فقط") message:text preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:ROText(@"Files", @"الملفات") message:text preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:ROText(@"OK", @"تمام") style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
@@ -312,4 +369,305 @@ static int ROOpen(ROLocation *location, NSString *relative) {
         });
     });
 }
+
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    [self fitNotice];
+}
+- (void)fitNotice {
+    CGFloat width = MAX(120, self.tableView.bounds.size.width - 40);
+    CGSize size = [self.notice sizeThatFits:CGSizeMake(width, CGFLOAT_MAX)];
+    CGFloat height = ceil(size.height) + 32;
+    if (fabs(self.notice.frame.size.height - height) > 1 ||
+        fabs(self.notice.frame.size.width - width) > 1) {
+        self.notice.frame = CGRectMake(20, 0, width, height);
+        self.tableView.tableHeaderView = self.notice;
+    }
+}
+- (BOOL)writableFolder {
+    if (!self.location) return NO;
+    NSURL *folder = self.relative.length ? [self.location.url URLByAppendingPathComponent:self.relative] : self.location.url;
+    NSString *path = folder.URLByResolvingSymlinksInPath.path;
+    NSString *home = [NSURL fileURLWithPath:NSHomeDirectory()].URLByResolvingSymlinksInPath.path;
+    if ([path isEqual:home] || [path hasPrefix:[home stringByAppendingString:@"/"]]) {
+        // Own Documents/tmp only. Never write Library, SystemData or the app root.
+        for (NSString *part in @[@"Documents", @"tmp"]) {
+            NSString *allowed = [home stringByAppendingPathComponent:part];
+            if ([path isEqual:allowed] || [path hasPrefix:[allowed stringByAppendingString:@"/"]]) return YES;
+        }
+        return NO;
+    }
+    return self.location.selected;
+}
+- (NSData *)folderSnapshot:(int)fd {
+    // Directory metadata and names, never recursive reads or link traversal.
+    int scan = openat(fd, ".", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    DIR *dir = scan >= 0 ? fdopendir(scan) : NULL;
+    if (!dir) { if (scan >= 0) close(scan); return nil; }
+    NSMutableArray *items = [NSMutableArray array];
+    struct dirent *entry;
+    BOOL valid = YES;
+    errno = 0;
+    while ((entry = readdir(dir))) {
+        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
+        struct stat st;
+        NSString *name = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:entry->d_name length:strlen(entry->d_name)];
+        if (!name || items.count >= 2000 || fstatat(fd, entry->d_name, &st, AT_SYMLINK_NOFOLLOW)) { valid = NO; break; }
+        [items addObject:[NSString stringWithFormat:@"%@|%llu|%llu|%u|%lld|%lld.%ld|%lld.%ld",
+            name, (unsigned long long)st.st_dev, (unsigned long long)st.st_ino, st.st_mode,
+            (long long)st.st_size, (long long)st.st_mtimespec.tv_sec, st.st_mtimespec.tv_nsec,
+            (long long)st.st_ctimespec.tv_sec, st.st_ctimespec.tv_nsec]];
+        errno = 0;
+    }
+    if (!entry && errno) valid = NO;
+    closedir(dir);
+    if (!valid) return nil;
+    [items sortUsingSelector:@selector(compare:)];
+    return [NSPropertyListSerialization dataWithPropertyList:items format:NSPropertyListBinaryFormat_v1_0 options:0 error:NULL];
+}
+- (NSData *)boundedFile:(int)parent name:(NSString *)name {
+    if (!GBValidName(name.fileSystemRepresentation)) return nil;
+    int fd = openat(parent, name.fileSystemRepresentation, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+    struct stat before, after;
+    if (fd < 0) return nil;
+    if (fstat(fd, &before) || !S_ISREG(before.st_mode) || before.st_size < 0 || before.st_size > 512*1024) { close(fd); return nil; }
+    NSMutableData *data = [NSMutableData data];
+    char buffer[16384]; ssize_t n = 0;
+    while (data.length <= 512*1024 && (n = read(fd, buffer, sizeof(buffer))) > 0)
+        [data appendBytes:buffer length:(NSUInteger)n];
+    BOOL valid = n == 0 && data.length <= 512*1024 && !fstat(fd, &after) &&
+        before.st_ino == after.st_ino && before.st_dev == after.st_dev &&
+        before.st_size == after.st_size && before.st_mtimespec.tv_sec == after.st_mtimespec.tv_sec &&
+        before.st_mtimespec.tv_nsec == after.st_mtimespec.tv_nsec && data.length == after.st_size;
+    close(fd);
+    return valid ? data : nil;
+}
+- (UIContextMenuConfiguration *)tableView:(UITableView *)tableView contextMenuConfigurationForRowAtIndexPath:(NSIndexPath *)path point:(CGPoint)point {
+    NSDictionary *row = self.visible[path.row];
+    if (![row[@"regular"] boolValue]) return nil;
+    NSString *name = row[@"name"];
+    return [UIContextMenuConfiguration configurationWithIdentifier:nil previewProvider:nil actionProvider:^UIMenu *(NSArray<UIMenuElement *> *suggested) {
+        UIAction *edit = [UIAction actionWithTitle:ROText(@"Edit text/plist into new copy", @"تعديل النص أو plist بنسخة جديدة") image:[UIImage systemImageNamed:@"square.and.pencil"] identifier:nil handler:^(__kindof UIAction *action) { [self editFile:name]; }];
+        UIAction *copy = [UIAction actionWithTitle:ROText(@"Copy in this folder", @"نسخ بنفس المجلد") image:[UIImage systemImageNamed:@"doc.on.doc"] identifier:nil handler:^(__kindof UIAction *action) { [self askNameFor:@"copy" source:name bytes:nil]; }];
+        UIAction *rename = [UIAction actionWithTitle:ROText(@"Rename file", @"تغيير اسم الملف") image:[UIImage systemImageNamed:@"pencil"] identifier:nil handler:^(__kindof UIAction *action) { [self askNameFor:@"rename" source:name bytes:nil]; }];
+        rename.attributes = UIMenuElementAttributesDisabled;
+        return [UIMenu menuWithTitle:name children:@[edit,copy,rename]];
+    }];
+}
+- (void)createFolder { [self askNameFor:@"mkdir" source:nil bytes:nil]; }
+- (void)askNameFor:(NSString *)operation source:(NSString *)source bytes:(NSData *)bytes {
+    if (self.pendingWrite) { [self message:ROText(@"Finish or cancel the pending backup first.", @"كمّل أو الغي النسخة الاحتياطية الحالية بالأول.")]; return; }
+    if (![self writableFolder]) { [self message:ROText(@"Changes are allowed only in this app’s Documents/tmp or a folder you select in Files. Library and SystemData stay read-only.", @"التغيير بس ضمن Documents وtmp للتطبيق أو مجلد بتختاره من الملفات. Library وSystemData بيضلوا للقراءة.")]; return; }
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:ROText(@"New name", @"الاسم الجديد")
+        message:ROText(@"Same folder only. Existing names are never replaced. Next you must export and re-open the backup.", @"بنفس المجلد فقط. ما منستبدل اسم موجود. بعدها لازم تحفظ النسخة الاحتياطية برا التطبيق وترجع تفتحها.")
+        preferredStyle:UIAlertControllerStyleAlert];
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *field) {
+        field.text = [operation isEqual:@"mkdir"] ? @"" : [operation isEqual:@"rename"] ? source :
+            [NSString stringWithFormat:@"%@-copy%@", source.stringByDeletingPathExtension,
+                source.pathExtension.length ? [@"." stringByAppendingString:source.pathExtension] : @""];
+        field.autocorrectionType = UITextAutocorrectionTypeNo;
+        field.textAlignment = NSTextAlignmentLeft;
+    }];
+    [alert addAction:[UIAlertAction actionWithTitle:ROText(@"Cancel", @"إلغاء") style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) { [self cancelPending]; }]];
+    [alert addAction:[UIAlertAction actionWithTitle:ROText(@"Prepare backup", @"تجهيز النسخة الاحتياطية") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self prepareOperation:operation source:source destination:alert.textFields.firstObject.text bytes:bytes];
+    }]];
+    UIAlertAction *cancel = alert.actions.firstObject;
+    (void)cancel;
+    [self.navigationController.topViewController presentViewController:alert animated:YES completion:nil];
+}
+- (void)editFile:(NSString *)name {
+    if (![self writableFolder]) { [self message:ROText(@"This folder is read-only.", @"هالمجلد للقراءة فقط.")]; return; }
+    int fd = ROOpen(self.location, self.relative ?: @"");
+    NSData *data = fd >= 0 ? [self boundedFile:fd name:name] : nil;
+    if (fd >= 0) close(fd);
+    if (!data || data.length > 256*1024) { [self message:ROText(@"Editor limit is 256 KB; only regular UTF-8 text and valid plists.", @"حد التعديل ٢٥٦ كيلوبايت، بس نص UTF-8 وملفات plist سليمة.")]; return; }
+    BOOL plist = [name.pathExtension.lowercaseString isEqual:@"plist"];
+    NSPropertyListFormat format = NSPropertyListXMLFormat_v1_0;
+    NSString *text;
+    if (plist) {
+        id value = [NSPropertyListSerialization propertyListWithData:data options:0 format:&format error:NULL];
+        if (value) {
+            NSData *xml = [NSPropertyListSerialization dataWithPropertyList:value format:NSPropertyListXMLFormat_v1_0 options:0 error:NULL];
+            if (xml.length <= 256*1024) text = [[NSString alloc] initWithData:xml encoding:NSUTF8StringEncoding];
+        }
+    } else text = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    if (!text || [text rangeOfString:[NSString stringWithFormat:@"%C", (unichar)0]].location != NSNotFound) {
+        [self message:ROText(@"Not editable UTF-8 text or valid bounded plist.", @"مو نص UTF-8 أو plist سليم ضمن الحد.")]; return;
+    }
+    GBTextEditor *editor = [GBTextEditor new]; editor.title = name; editor.initialText = text;
+    NSPropertyListFormat originalFormat = format;
+    __weak GBTextEditor *weakEditor = editor;
+    editor.saveText = ^(NSString *edited) {
+        GBTextEditor *editor = weakEditor;
+        NSData *output = [edited dataUsingEncoding:NSUTF8StringEncoding];
+        if (output.length > 256*1024) { [self editorMessage:editor text:ROText(@"256 KB limit exceeded.", @"تجاوزت حد ٢٥٦ كيلوبايت.")]; return; }
+        if (plist) {
+            id value = [NSPropertyListSerialization propertyListWithData:output options:0 format:NULL error:NULL];
+            if (!value || ![NSPropertyListSerialization propertyList:value isValidForFormat:originalFormat]) {
+                [self editorMessage:editor text:ROText(@"Invalid plist. Nothing saved.", @"ملف plist مو سليم. ما انحفظ شي.")]; return;
+            }
+            output = [NSPropertyListSerialization dataWithPropertyList:value format:originalFormat options:0 error:NULL];
+        }
+        if (!output || output.length > 256*1024) { [self editorMessage:editor text:ROText(@"Serialized copy exceeds 256 KB.", @"النسخة بعد التحويل تجاوزت ٢٥٦ كيلوبايت.")]; return; }
+        int current = ROOpen(self.location, self.relative ?: @"");
+        NSData *now = current >= 0 ? [self boundedFile:current name:name] : nil;
+        if (current >= 0) close(current);
+        if (![now isEqual:data]) { [self editorMessage:editor text:ROText(@"Original changed while editing. Re-open it; nothing saved.", @"الأصل تغير وقت التعديل. افتحه من جديد، ما انحفظ شي.")]; return; }
+        [self.navigationController popToViewController:self animated:NO];
+        self.draftEditor = editor;
+        self.editingOriginal = data;
+        [self askNameFor:@"edit-copy" source:name bytes:output];
+    };
+    [self.navigationController pushViewController:editor animated:YES];
+}
+- (void)editorMessage:(UIViewController *)editor text:(NSString *)text {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:ROText(@"Editor", @"التعديل") message:text preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:ROText(@"OK", @"تمام") style:UIAlertActionStyleCancel handler:nil]];
+    [editor presentViewController:alert animated:YES completion:nil];
+}
+- (void)prepareOperation:(NSString *)operation source:(NSString *)source destination:(NSString *)destination bytes:(NSData *)bytes {
+    if ([operation isEqual:@"rename"]) { [self message:ROText(@"Rename is disabled until source-identity races can be excluded.", @"تغيير الاسم موقوف لحين ضمان عدم تبدّل الملف وقت التنفيذ.")]; return; }
+    if (self.pendingWrite || ![self writableFolder] || !destination.length ||
+        !GBValidName(destination.fileSystemRepresentation)) { [self message:ROText(@"Invalid name or another operation is pending.", @"الاسم مو صالح أو في عملية تانية.")]; return; }
+    int fd = ROOpen(self.location, self.relative ?: @"");
+    if (fd < 0) { [self message:ROError()]; return; }
+    struct stat st;
+    BOOL conflict = fstatat(fd, destination.fileSystemRepresentation, &st, AT_SYMLINK_NOFOLLOW) == 0 || errno != ENOENT;
+    NSData *snapshot = [self folderSnapshot:fd];
+    NSData *original = source ? [self boundedFile:fd name:source] : [NSData data];
+    close(fd);
+    if (conflict || !snapshot || !original || ([operation isEqual:@"edit-copy"] && ![original isEqual:self.editingOriginal])) {
+        [self message:ROText(@"Name already exists, folder changed, or source is not a regular file within 512 KB. Nothing changed.", @"الاسم موجود، المجلد تغير، أو الملف مو عادي وضمن ٥١٢ كيلوبايت. ما تغير شي.")]; return;
+    }
+    self.pendingWrite = [@{@"operation":operation, @"source":source ?: @"", @"destination":destination,
+        @"original":original, @"snapshot":snapshot, @"output":bytes ?: original} mutableCopy];
+    NSDictionary *backup = @{@"schema":@1, @"operation":operation, @"source":source ?: @"",
+        @"destination":destination, @"original":original, @"folderManifest":snapshot,
+        @"sourceFolder":self.relative ?: @"", @"created":[NSDate date],
+        @"notice":@"File data is complete for source only. Folder creation backs up the parent manifest, not a recursive folder backup."};
+    self.backupBytes = [NSPropertyListSerialization dataWithPropertyList:backup format:NSPropertyListBinaryFormat_v1_0 options:0 error:NULL];
+    NSString *cache = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
+    NSURL *staging = [[NSURL fileURLWithPath:cache] URLByAppendingPathComponent:@"GesterBrowserBackup" isDirectory:YES];
+    NSError *error = nil;
+    // Staging is app-private backup material only, not a mutation of the selected document.
+    if (![[NSFileManager defaultManager] createDirectoryAtURL:staging withIntermediateDirectories:YES attributes:@{NSFileProtectionKey:NSFileProtectionComplete} error:&error]) {
+        [self cancelPending]; [self message:ROText(@"Cannot stage a backup. Nothing changed.", @"ما قدرنا نجهز نسخة احتياطية. ما تغير شي.")]; return;
+    }
+    self.backupTemporaryURL = [staging URLByAppendingPathComponent:[NSString stringWithFormat:@"Gester-backup-%@.plist", NSUUID.UUID.UUIDString]];
+    if (!self.backupBytes || ![self.backupBytes writeToURL:self.backupTemporaryURL options:NSDataWritingWithoutOverwriting error:&error]) {
+        [self cancelPending]; [self message:ROText(@"Backup creation failed. Nothing changed.", @"فشل تجهيز النسخة الاحتياطية. ما تغير شي.")]; return;
+    }
+    self.backupVerified = NO;
+    self.backupPickerPhase = 1;
+    UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForExportingURLs:@[self.backupTemporaryURL] asCopy:YES];
+    picker.delegate = self;
+    [self presentViewController:picker animated:YES completion:nil];
+}
+- (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller {
+    if (self.backupPickerPhase) [self cancelPending];
+}
+- (BOOL)externalBackupURL:(NSURL *)url {
+    if (!url.isFileURL) return NO;
+    NSString *path = url.URLByResolvingSymlinksInPath.path;
+    NSString *home = [NSURL fileURLWithPath:NSHomeDirectory()].URLByResolvingSymlinksInPath.path;
+    NSString *root = self.location.url.URLByResolvingSymlinksInPath.path;
+    return path.length && ![path isEqual:home] && ![path hasPrefix:[home stringByAppendingString:@"/"]] &&
+        ![path isEqual:root] && ![path hasPrefix:[root stringByAppendingString:@"/"]];
+}
+- (void)handleBackupPicker:(NSArray<NSURL *> *)urls {
+    if (!self.pendingWrite || !urls.count) { [self cancelPending]; return; }
+    if (self.backupPickerPhase == 1) {
+        // Export completion alone is NOT proof. Force a fresh user-selected open.
+        self.backupPickerPhase = 2;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:ROText(@"Re-open the exported backup", @"افتح النسخة المحفوظة")
+                message:ROText(@"Choose the backup you just saved OUTSIDE this app and the source folder. Its exact bytes will be checked. Cancel means no changes.", @"اختار النسخة اللي حفظتها برا التطبيق وبرا مجلد المصدر. رح نطابق محتواها بالكامل. الإلغاء يعني ما منغير شي.")
+                preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction actionWithTitle:ROText(@"Cancel", @"إلغاء") style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) { [self cancelPending]; }]];
+            [alert addAction:[UIAlertAction actionWithTitle:ROText(@"Open backup", @"فتح النسخة") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initWithDocumentTypes:@[@"public.data"] inMode:UIDocumentPickerModeOpen];
+                picker.delegate = self; [self presentViewController:picker animated:YES completion:nil];
+            }]];
+            [self presentViewController:alert animated:YES completion:nil];
+        });
+        return;
+    }
+    NSURL *url = urls.firstObject;
+    if (![self externalBackupURL:url]) { [self cancelPending]; [self message:ROText(@"Backup must be outside this app and the selected source folder. Nothing changed.", @"النسخة لازم تكون برا التطبيق وبرا مجلد المصدر. ما تغير شي.")]; return; }
+    BOOL scoped = [url startAccessingSecurityScopedResource];
+    __block NSData *actual;
+    NSFileCoordinator *coordinator = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
+    [coordinator coordinateReadingItemAtURL:url options:0 error:NULL byAccessor:^(NSURL *readURL) {
+        if (![self externalBackupURL:readURL]) return;
+        int fd = open(readURL.fileSystemRepresentation, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+        struct stat st;
+        if (fd >= 0 && !fstat(fd,&st) && S_ISREG(st.st_mode) && st.st_size >= 0 && st.st_size <= 2*1024*1024) {
+            NSMutableData *data = [NSMutableData data]; char buffer[16384]; ssize_t n = 0;
+            while (data.length <= 2*1024*1024 && (n=read(fd,buffer,sizeof(buffer))) > 0) [data appendBytes:buffer length:(NSUInteger)n];
+            if (!n && data.length <= 2*1024*1024) actual = data;
+        }
+        if (fd >= 0) close(fd);
+    }];
+    if (scoped) [url stopAccessingSecurityScopedResource];
+    if (![actual isEqual:self.backupBytes]) { [self cancelPending]; [self message:ROText(@"Backup differs or could not be read. Nothing changed.", @"النسخة مختلفة أو ما قدرنا نقرأها. ما تغير شي.")]; return; }
+    self.backupVerified = YES; self.backupPickerPhase = 0;
+    NSDictionary *plan = self.pendingWrite;
+    NSString *summary = [NSString stringWithFormat:@"%@\n%@  →  %@\n%@ (%lu → %lu bytes)\n%@",
+        plan[@"operation"], plan[@"source"], plan[@"destination"],
+        ROText(@"Original / output", @"الأصل / الناتج"), (unsigned long)[plan[@"original"] length], (unsigned long)[plan[@"output"] length],
+        ROText(@"External backup verified byte-for-byte. No overwrite or delete. Apply this one change?", @"تأكدنا من النسخة الخارجية بايت ببايت. بدون استبدال أو حذف. نطبق هالتغيير بس؟")];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:ROText(@"Confirm change", @"تأكيد التغيير") message:summary preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:ROText(@"Cancel", @"إلغاء") style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) { [self cancelPending]; }]];
+    [alert addAction:[UIAlertAction actionWithTitle:ROText(@"Apply", @"تطبيق") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) { [self executePending]; }]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+- (void)executePending {
+    if (!self.pendingWrite || !self.backupVerified || ![self writableFolder]) { [self cancelPending]; return; }
+    NSDictionary *plan = self.pendingWrite;
+    NSURL *folder = self.relative.length ? [self.location.url URLByAppendingPathComponent:self.relative] : self.location.url;
+    __block BOOL success = NO;
+    NSFileCoordinator *coordinator = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
+    [coordinator coordinateWritingItemAtURL:folder options:0 error:NULL byAccessor:^(NSURL *authorizedURL) {
+        int fd = ROOpen(self.location, self.relative ?: @"");
+        if (fd < 0) return;
+        // Provider URL and descriptor must still refer to exactly the same directory.
+        struct stat opened, named;
+        BOOL unchanged = !fstat(fd,&opened) && !lstat(authorizedURL.fileSystemRepresentation,&named) &&
+            S_ISDIR(named.st_mode) && opened.st_dev == named.st_dev && opened.st_ino == named.st_ino &&
+            [[self folderSnapshot:fd] isEqual:plan[@"snapshot"]];
+        NSString *source = plan[@"source"], *destination = plan[@"destination"], *operation = plan[@"operation"];
+        if (unchanged && source.length) unchanged = [[self boundedFile:fd name:source] isEqual:plan[@"original"]];
+        if (unchanged) {
+            if ([operation isEqual:@"mkdir"]) {
+                struct stat result;
+                success = GBMakeFolder(fd,destination.fileSystemRepresentation) == 0 &&
+                    !fstatat(fd,destination.fileSystemRepresentation,&result,AT_SYMLINK_NOFOLLOW) && S_ISDIR(result.st_mode);
+            }
+            else if ([operation isEqual:@"copy"] || [operation isEqual:@"edit-copy"]) {
+                NSData *output = plan[@"output"];
+                success = GBCreateFile(fd,destination.fileSystemRepresentation,output.bytes,output.length) == 0;
+                if (success) success = [[self boundedFile:fd name:destination] isEqual:output];
+            }
+        }
+        close(fd);
+    }];
+    if (success) self.draftEditor = nil;
+    [self cancelPending];
+    [self reloadFolder];
+    [self message:success ? ROText(@"Change verified. Keep the exported backup. Original text/plist stays unchanged when saving an edited copy.", @"تأكدنا من التغيير. احتفظ بالنسخة الاحتياطية. حفظ النسخة المعدلة ما بيغير النص أو plist الأصلي.") :
+        ROText(@"Operation not verified: conflict, changed folder/source, read-only provider or I/O failure. Inspect the folder; do not retry blindly. The exported backup remains.", @"ما تأكدنا من العملية، ممكن تعارض أو تغير المصدر أو المجلد للقراءة أو خطأ كتابة. افحص المجلد قبل ما تعيد. النسخة الخارجية بتضل موجودة.")];
+}
+- (void)cancelPending {
+    self.backupPickerPhase = 0; self.backupVerified = NO; self.pendingWrite = nil; self.backupBytes = nil;
+    if (self.backupTemporaryURL) [[NSFileManager defaultManager] removeItemAtURL:self.backupTemporaryURL error:NULL];
+    self.backupTemporaryURL = nil; self.editingOriginal = nil;
+    if (self.draftEditor && ![self.navigationController.viewControllers containsObject:self.draftEditor]) {
+        GBTextEditor *draft = self.draftEditor;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (!self.presentedViewController) [self.navigationController pushViewController:draft animated:YES];
+        });
+    }
+}
+
 @end
