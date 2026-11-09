@@ -17,6 +17,8 @@ jobs:
           xcrun --sdk iphoneos --show-sdk-path
           cc -Wall -Wextra -Werror tests/ro_access_test.c -o "$RUNNER_TEMP/ro-access-test"
           "$RUNNER_TEMP/ro-access-test"
+          cc -Wall -Wextra -Werror tests/safe_write_test.c -o "$RUNNER_TEMP/safe-write-test"
+          "$RUNNER_TEMP/safe-write-test"
       - name: Build without signing or provisioning
         run: |
           set -o pipefail
