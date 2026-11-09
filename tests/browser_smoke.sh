@@ -16,15 +16,20 @@ trap 'xcrun simctl delete "$UDID" || true' EXIT
 xcrun simctl boot "$UDID"
 xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$WORK/Smoke.app"
-xcrun simctl launch --console "$UDID" com.alaa.browser-smoke > "$WORK/console.log" 2>&1 &
-LAUNCH=$!
-for i in $(seq 1 30); do
-  if grep -q SMOKE_PASS "$WORK/console.log"; then break; fi
-  if ! kill -0 "$LAUNCH" 2>/dev/null; then break; fi
-  sleep 1
+for LANGUAGE in en ar; do
+  LOG="$WORK/console-$LANGUAGE.log"
+  xcrun simctl launch --console "$UDID" com.alaa.browser-smoke -AppleLanguages "($LANGUAGE)" -AppleLocale "$LANGUAGE" > "$LOG" 2>&1 &
+  LAUNCH=$!
+  for i in $(seq 1 45); do
+    if grep -q SMOKE_PASS "$LOG"; then break; fi
+    if ! kill -0 "$LAUNCH" 2>/dev/null; then break; fi
+    sleep 1
+  done
+  cat "$LOG"
+  xcrun simctl io "$UDID" screenshot "$WORK/screenshot-$LANGUAGE.png"
+  grep -q SMOKE_SAFE_GATES_PASS "$LOG"
+  grep -q SMOKE_LAYOUT_PASS "$LOG"
+  grep -q SMOKE_PASS "$LOG"
+  xcrun simctl terminate "$UDID" com.alaa.browser-smoke || true
+  wait "$LAUNCH" || true
 done
-cat "$WORK/console.log"
-xcrun simctl io "$UDID" screenshot "$WORK/screenshot.png" || true
-grep -q SMOKE_PASS "$WORK/console.log"
-xcrun simctl terminate "$UDID" com.alaa.browser-smoke || true
-wait "$LAUNCH" || true
