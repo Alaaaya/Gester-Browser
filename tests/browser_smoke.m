@@ -24,7 +24,9 @@
         [browser loadViewIfNeeded];
         NSLog(@"SMOKE_OPENED");
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3*NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-            NSLog(@"SMOKE_ROWS %ld", (long)[browser tableView:browser.tableView numberOfRowsInSection:0]);
+            NSInteger rows = [browser tableView:browser.tableView numberOfRowsInSection:0];
+            NSCAssert(rows > 0, @"Authorized app root must list at least Library and tmp");
+            NSLog(@"SMOKE_ROOT_ROWS %ld", (long)rows);
             tabs.selectedIndex = 0;
             tabs.selectedIndex = 1;
             NSLog(@"SMOKE_PASS");
