@@ -1,16 +1,12 @@
-# KAMUI — iOS 27.x sandbox escape + MobileGestalt editor
+# Gester — iOS 27.x sandbox escape + MobileGestalt editor
 
-> *Kamui (神威) — the eye that phases matter into another dimension. Here one
-> symlinked part directory makes `containermanagerd` issue a sandbox extension
-> for a container that should be out of reach.*
-
-**Open source, MIT licensed and free for everyone.** KAMUI is not limited to
+**Open source, MIT licensed and free for everyone.** Gester is not limited to
 testers, a private group or an allowlist. Anyone can use, study, modify,
 redistribute and ship the MobileGestalt editor under the MIT license.
 
 Supported: **iOS 27.0.1 – 27.2** (primary target 27.2 / 24B115).
 
-This repository contains the escape engine, the **KAMUI** app source (internal
+This repository contains the escape engine, the **Gester** app source (internal
 target `BQTool`) and the release IPA.
 
 ---
@@ -23,7 +19,7 @@ build — the MIT license allows all of it.
 
 The MobileGestalt editor itself has no access check and no allowlist. On
 **iOS 27.2** the primary class-7 path needs at least one
-`com.apple.security.application-groups` entitlement in the running app. KAMUI
+`com.apple.security.application-groups` entitlement in the running app. Gester
 2.4.1 also offers an **opt-in class-2 parent fallback** (Settings → Class-2
 fallback), which renames the app's own `Library` and may work without an app
 group. It is off by default because some builds terminate the app when
@@ -35,7 +31,7 @@ work without an app group.
 
 ## 1. What this is
 
-KAMUI is a **partial sandbox escape**: a normally sandboxed app obtains a
+Gester is a **partial sandbox escape**: a normally sandboxed app obtains a
 read/write sandbox extension for a path outside its own containers. It is not
 root, not a kernel exploit and not a full filesystem escape. It is exactly
 enough to:
@@ -128,7 +124,7 @@ tmp                  -> EPERM (errno 1)
 SystemData           -> EPERM (errno 1)
 ```
 
-Only the app-group part directory is directly renameable. KAMUI 2.4.1 has an
+Only the app-group part directory is directly renameable. Gester 2.4.1 has an
 **opt-in class-2 parent fallback** for builds without an app group. It is off
 by default (2.2 ran it automatically and could crash on builds that kill the
 process for moving `Library`):
@@ -148,7 +144,7 @@ class-7 path still needs an app group.
 
 ### 2.4 Dynamic app group
 
-Old builds hardcoded one group. KAMUI reads the app's own runtime entitlements:
+Old builds hardcoded one group. Gester reads the app's own runtime entitlements:
 
 ```objc
 SecTaskRef task = SecTaskCreateFromSelf(kCFAllocatorDefault);
@@ -206,21 +202,21 @@ Requirements: Linux/macOS, clang, an iOS SDK (Theos SDK works), zlib.
 
 ```bash
 ./build.sh
-# -> build/KAMUI-2.4.1.ipa
+# -> build/Gester-2.4.1.ipa
 ```
 
-The default bundle identifier is `com.kamui.escape`. Override with `BID=...`.
+The default bundle identifier is `com.Gester.escape`. Override with `BID=...`.
 The SDK path can be overridden with `SDK=...`.
 
 ---
 
 ## 5. Install and runtime requirement
 
-Anyone can install `KAMUI-2.4.1.ipa`; use whatever installation method you
+Anyone can install `Gester-2.4.1.ipa`; use whatever installation method you
 normally use.
 
 The primary 27.2 strategy needs the running app to have at least one
-`com.apple.security.application-groups` entitlement. KAMUI reads its own
+`com.apple.security.application-groups` entitlement. Gester reads its own
 entitlements at runtime and uses the first group that has a container URL.
 
 - **With an app group** — class 7 is attempted after the class-13 fallback and
@@ -336,11 +332,11 @@ This distinguishes:
 
 ## 10. Disclosure and public use
 
-KAMUI is public, MIT-licensed research. The primitive and the MobileGestalt
+Gester is public, MIT-licensed research. The primitive and the MobileGestalt
 editor are available to everyone; there is no embargo, tester list or private
 group.
 
-- If you find a bug in KAMUI, open a GitHub issue or security advisory.
+- If you find a bug in Gester, open a GitHub issue or security advisory.
 - If you want to report the underlying MCM behavior to Apple, use **Apple
   Security Bounty** (Sandbox Escape category) and include the iOS build, the
   exact query (class 7 / part 3 / empty `partDomain` / flags `0x8100000000`),
@@ -357,7 +353,7 @@ See [SECURITY.md](SECURITY.md).
 
 ## 11. Credits
 
-- KAMUI primitive, app, dynamic group and multi-strategy: this project.
+- Gester primitive, app, dynamic group and multi-strategy: this project.
 - `bad_query` research: forcequitOS, 0xjohnny.
 - UI/feature inspiration: rooootdev/mond.
 - NeoSpring respring: neonmodder123, skadz108.
@@ -368,14 +364,14 @@ See [SECURITY.md](SECURITY.md).
 
 ## 12. License and release assets
 
-KAMUI is released under the **MIT License** — see [LICENSE](LICENSE). You may
+Gester is released under the **MIT License** — see [LICENSE](LICENSE). You may
 use, copy, modify, merge, publish, distribute, sublicense and sell copies of
 the software, including the MobileGestalt editor, as long as the copyright and
 permission notice are preserved.
 
 `v2.4.1`:
 
-- `KAMUI-2.4.1.ipa` — the app; install it on any supported device.
+- `Gester-2.4.1.ipa` — the app; install it on any supported device.
 - Source code and build script are in this repository.
 
 There is no allowlist and no special access. The anime name is for fun; the
