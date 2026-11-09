@@ -30,7 +30,7 @@ fi
 
 echo "[*] compiling..."
 clang \
-    -target arm64-apple-ios14.0 \
+    -target arm64-apple-ios15.0 \
     -isysroot "$SDK" \
     -I"$ROOT/src" \
     -fobjc-arc -fblocks -O2 \

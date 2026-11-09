@@ -1,0 +1,63 @@
+name: Unsigned Gester Browser
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain and access policy tests
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path
+          cc -Wall -Wextra -Werror tests/ro_access_test.c -o "$RUNNER_TEMP/ro-access-test"
+          "$RUNNER_TEMP/ro-access-test"
+      - name: Build without signing or provisioning
+        run: |
+          set -o pipefail
+          xcodebuild -project Gester.xcodeproj -scheme Gester -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/gester-derived" \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" build | tee build.log
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p output/Payload
+          cp -R "$RUNNER_TEMP/gester-derived/Build/Products/Release-iphoneos/BQTool.app" output/Payload/
+          cp LICENSE output/Payload/BQTool.app/LICENSE
+          test ! -e output/Payload/BQTool.app/embedded.mobileprovision
+          (cd output && zip -qry Gester-Browser-unsigned.ipa Payload)
+          python3 - <<'PY'
+          import zipfile, plistlib, hashlib, pathlib, json, struct
+          p=pathlib.Path('output/Gester-Browser-unsigned.ipa')
+          with zipfile.ZipFile(p) as z:
+              assert z.testzip() is None
+              info=plistlib.loads(z.read('Payload/BQTool.app/Info.plist'))
+              exe=z.read('Payload/BQTool.app/'+info['CFBundleExecutable'])
+              assert exe[:4] == bytes.fromhex('cffaedfe'), 'Expected arm64 Mach-O'
+              assert struct.unpack_from('<I',exe,4)[0] == 0x100000c
+              assert info['CFBundleIdentifier'] == 'com.kamui.escape'
+              assert b'ReadOnlyBrowserVC' in exe
+              assert z.read('Payload/BQTool.app/LICENSE')
+              assert not any('_CodeSignature/' in n for n in z.namelist())
+          proof={'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'size':p.stat().st_size,'info':info,'deviceTested':False,'signed':False}
+          pathlib.Path('output/verification.json').write_text(json.dumps(proof,indent=2))
+          print(json.dumps({k:proof[k] for k in ['sha256','size','deviceTested','signed']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gester-Browser-unsigned
+          path: |
+            output/Gester-Browser-unsigned.ipa
+            output/verification.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: ignore

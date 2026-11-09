@@ -45,3 +45,13 @@ Do not replace/modify signing entitlements or initialize extra access pathways t
 work. Device test must check picker cancel/denied/offline provider, back stack, Arabic LTR,
 large folders, long filenames, binary plist, oversized/malformed images, symlink rejection,
 and memory pressure. Access to other app containers is not promised or verified.
+
+Private publication preparation
+- Separate repository Alaaaya/Gester-Browser; no other repositories changed.
+- Workflow uses Xcode's iphoneos SDK on macos-15, no signing credentials, no provisioning.
+- Deployment minimum reconciled to iOS 15 across script, project and Info.plist.
+- Bundle identity and upstream entitlement file unchanged. Signer must supply its own valid profile.
+- Unsigned artifact is not directly installable. No certificate or App Group access promised.
+- Workflow runs policy tests and validates ZIP CRC, arm64 executable, browser class, metadata,
+  bundled MIT notice and absence of provisioning/signature directories before upload.
+- Remote compilation and device testing remain pending until actual Actions evidence is recorded.
