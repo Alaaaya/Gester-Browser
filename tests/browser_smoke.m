@@ -108,7 +108,7 @@ static void VerifySafeGates(UINavigationController *nav) {
     NSCAssert([nav isKindOfClass:UINavigationController.class], @"Files nav");
     ReadOnlyBrowserVC *browser = (ReadOnlyBrowserVC *)nav.viewControllers.firstObject;
     NSCAssert([browser isKindOfClass:ReadOnlyBrowserVC.class], @"Root is actual Files browser");
-    NSLog(@"SMOKE_ROOT_PASS single Files tab selected 0 LTR");
+    NSLog(@"SMOKE_FILES_ONLY_PASS single Files tab selected 0 LTR");
     [self.window makeKeyAndVisible];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         [browser loadViewIfNeeded];

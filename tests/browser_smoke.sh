@@ -28,7 +28,7 @@ for LANGUAGE in en ar; do
   cat "$LOG"
   xcrun simctl io "$UDID" screenshot "$WORK/screenshot-$LANGUAGE.png"
   grep -q SMOKE_SAFE_GATES_PASS "$LOG"
-  grep -q SMOKE_ROOT_PASS "$LOG"
+  grep -q SMOKE_FILES_ONLY_PASS "$LOG"
   grep -q SMOKE_LAYOUT_PASS "$LOG"
   grep -q SMOKE_PASS "$LOG"
   xcrun simctl terminate "$UDID" com.alaa.browser-smoke || true
