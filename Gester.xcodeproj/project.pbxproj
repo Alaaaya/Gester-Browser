@@ -28,6 +28,7 @@
 		D528ED04A373621674DDA76D /* iTunesArtwork@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 5777F360C5C8F27036FF276B /* iTunesArtwork@2x.png */; };
 		E5659FDBC7C33F1D8A08DEEA /* CacheExtraEditVC.m in Sources */ = {isa = PBXBuildFile; fileRef = 02BE792EE98964C2197D6EEA /* CacheExtraEditVC.m */; };
 		F823FDEBDF798632E4804667 /* RootTabBarController.m in Sources */ = {isa = PBXBuildFile; fileRef = FAAE12318AE0AABC42C3F99B /* RootTabBarController.m */; };
+		AB1000000000000000000001 /* ReadOnlyBrowserVC.m in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000002 /* ReadOnlyBrowserVC.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +72,8 @@
 		EBA8034EB0F25F5241943A8E /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
 		FAAE12318AE0AABC42C3F99B /* RootTabBarController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RootTabBarController.m; sourceTree = "<group>"; };
 		FF27BBC2C5DEB2B17C1C2598 /* SceneDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SceneDelegate.m; sourceTree = "<group>"; };
+		AB1000000000000000000002 /* ReadOnlyBrowserVC.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ReadOnlyBrowserVC.m; sourceTree = "<group>"; };
+		AB1000000000000000000003 /* ReadOnlyBrowserVC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ReadOnlyBrowserVC.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -126,6 +129,8 @@
 				52B1228304FEEFB630DB2E6A /* respring.html */,
 				3B9B4B9BCBCB38D10B428A33 /* RootTabBarController.h */,
 				FAAE12318AE0AABC42C3F99B /* RootTabBarController.m */,
+				AB1000000000000000000002 /* ReadOnlyBrowserVC.m */,
+				AB1000000000000000000003 /* ReadOnlyBrowserVC.h */,
 				15C9372E35AA417B22708A6F /* SceneDelegate.h */,
 				FF27BBC2C5DEB2B17C1C2598 /* SceneDelegate.m */,
 				41A5781D98EB89B5C84AEA8A /* SettingsVC.h */,
@@ -230,6 +235,7 @@
 				090AE68852E4E6A0600C7B77 /* LogVC.m in Sources */,
 				A0E68D7F10258E4C88C967FF /* PosterBoardVC.m in Sources */,
 				F823FDEBDF798632E4804667 /* RootTabBarController.m in Sources */,
+				AB1000000000000000000001 /* ReadOnlyBrowserVC.m in Sources */,
 				5CF883F50020AC031058B356 /* SceneDelegate.m in Sources */,
 				2B9516024680F9BF01E9654B /* SettingsVC.m in Sources */,
 				863C302603492EBF6FF29016 /* TendiesExploreVC.m in Sources */,
@@ -283,6 +289,8 @@
 					CoreGraphics,
 					"-framework",
 					WebKit,
+					"-framework",
+					ImageIO,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kamui.escape;
 				PRODUCT_NAME = BQTool;
@@ -382,6 +390,8 @@
 					CoreGraphics,
 					"-framework",
 					WebKit,
+					"-framework",
+					ImageIO,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kamui.escape;
 				PRODUCT_NAME = BQTool;

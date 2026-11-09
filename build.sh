@@ -40,12 +40,14 @@ clang \
     -framework CoreFoundation \
     -framework CoreGraphics \
     -framework WebKit \
+    -framework ImageIO \
     -L"$SDK/usr/lib" -lz \
     ${EXTRA_LDFLAGS} \
     "$ROOT/src/main.m" \
     "$ROOT/src/AppDelegate.m" \
     "$ROOT/src/SceneDelegate.m" \
     "$ROOT/src/RootTabBarController.m" \
+    "$ROOT/src/ReadOnlyBrowserVC.m" \
     "$ROOT/src/GestaltVC.m" \
     "$ROOT/src/CacheExtraEditVC.m" \
     "$ROOT/src/PosterBoardVC.m" \
